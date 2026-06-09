@@ -30,7 +30,7 @@ Esta aplicação substitui formulários externos por uma solução própria, aud
 ### Backend
 
 * Next.js Route Handlers
-* Supabase Auth (Magic Link)
+* Supabase Auth (login por senha; link de e-mail no primeiro acesso/recuperação)
 * PostgreSQL
 
 ### Banco de Dados
@@ -83,7 +83,7 @@ Princípio adotado:
 
 ### Administração
 
-* Login por Magic Link
+* Login por senha (link de e-mail no primeiro acesso/recuperação)
 * Curadoria das submissões
 * Alteração de status
 * Exportação CSV
@@ -152,12 +152,23 @@ http://localhost:3000
 
 ## Variáveis de Ambiente
 
-Criar um arquivo `.env.local`:
+Copie `.env.example` para `.env.local` e preencha:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
+
+> **Não** use `SERVICE_ROLE_KEY` na aplicação — apenas, se necessário, no script local de
+> importação (`scripts/import-solucoes.ts`).
+
+### Configuração inicial (banco)
+
+1. Aplique as migrations de `supabase/migrations/` (01 → 10) ao seu projeto Supabase.
+2. **Antes de aplicar a `04_seed_admins.sql`, troque o e-mail placeholder
+   (`admin@example.gov.br`) pelo do seu primeiro administrador.** Novos admins podem ser
+   convidados depois pela própria tela (`/admin/admins`).
+3. No Supabase Auth, configure **Site URL** e **Redirect URLs** do seu domínio.
 
 ---
 
@@ -175,8 +186,10 @@ supabase/
 
 ## Licença
 
-A definir.
-Possível adoção de licença MIT para facilitar reutilização por órgãos públicos e instituições parceiras.
+Distribuído sob a licença **MIT** — veja [LICENSE](LICENSE). Software livre, para facilitar a
+reutilização e a adaptação por órgãos públicos e instituições parceiras.
+
+Para reportar vulnerabilidades, veja [SECURITY.md](SECURITY.md).
 
 ---
 
