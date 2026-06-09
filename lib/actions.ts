@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdmin, registrarAuditoria } from "./auth-guard";
-import { codes, STATUS_MATURACAO } from "./enums";
+import { codes, STATUS_MATURACAO, TECNOLOGIA_IA } from "./enums";
 
 // Edição de curadoria. Trava: status 'validada' exige confirmação humana explícita.
 export async function atualizarCuradoria(formData: FormData) {
@@ -14,6 +14,7 @@ export async function atualizarCuradoria(formData: FormData) {
   const status = String(formData.get("status_maturacao") ?? "");
   const encaminhamento = String(formData.get("encaminhamento") ?? "").trim();
   const triagem_notas = String(formData.get("triagem_notas") ?? "").trim();
+  const tecnologia_ia = String(formData.get("tecnologia_ia") ?? "").trim();
   const tipoExtraRaw = String(formData.get("tipo_ativo_extra") ?? "").trim();
   const confirmarValidada = formData.get("confirmar_validada") === "on";
 
@@ -26,6 +27,8 @@ export async function atualizarCuradoria(formData: FormData) {
 
   // Piso de honestidade: "Validada" nunca é automática — confirmação humana.
   if (status === "validada" && !confirmarValidada) redirect(`${base}?erro=confirme`);
+
+  if (tecnologia_ia && !codes(TECNOLOGIA_IA).includes(tecnologia_ia)) redirect(`${base}?erro=tecnologia`);
 
   let tipo_ativo_extra: unknown = null;
   if (tipoExtraRaw) {
@@ -42,6 +45,7 @@ export async function atualizarCuradoria(formData: FormData) {
       status_maturacao: status,
       encaminhamento: encaminhamento || null,
       triagem_notas: triagem_notas || null,
+      tecnologia_ia: tecnologia_ia || null,
       tipo_ativo_extra,
     })
     .eq("id", id);

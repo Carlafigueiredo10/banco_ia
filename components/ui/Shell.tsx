@@ -22,7 +22,8 @@ export function Footer() {
       <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px", fontSize: ".85rem", display: "flex", gap: 16, flexWrap: "wrap" }}>
         <Link href="/privacidade" style={{ color: "#fff" }}>Aviso de privacidade</Link>
         <Link href="/contribuir" style={{ color: "#fff" }}>Contribuir</Link>
-        <span style={{ opacity: 0.7 }}>Informações abertas · construído com o público</span>
+        <a href="mailto:liia@enap.gov.br" style={{ color: "#fff" }}>liia@enap.gov.br</a>
+        <span style={{ opacity: 0.7 }}>LIIA/ENAP · informações abertas · construído com o público</span>
       </div>
     </footer>
   );

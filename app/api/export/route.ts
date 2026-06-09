@@ -2,7 +2,7 @@ import { getAdmin, registrarAuditoria } from "@/lib/auth-guard";
 import { lerFiltros, selecionarSubmissoes } from "@/lib/query";
 import { toCSV } from "@/lib/csv";
 import {
-  labelOf, NIVEL_GOVERNO, TIPO_ATIVO, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
+  labelOf, NIVEL_GOVERNO, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO, ESTAGIO, STATUS_MATURACAO,
 } from "@/lib/enums";
 
@@ -10,6 +10,8 @@ const COLUNAS = [
   { key: "criado_em", header: "Data" },
   { key: "nome_solucao", header: "Solução" },
   { key: "problema", header: "Problema" },
+  { key: "como_funciona", header: "Como funciona" },
+  { key: "tecnologia_ia", header: "Tecnologia de IA" },
   { key: "orgao", header: "Órgão" },
   { key: "nivel_governo", header: "Nível" },
   { key: "uf", header: "UF" },
@@ -42,6 +44,7 @@ function paraExibicao(r: Record<string, any>) {
     ...r,
     nivel_governo: labelOf(NIVEL_GOVERNO, r.nivel_governo),
     tipo_ativo: labelOf(TIPO_ATIVO, r.tipo_ativo),
+    tecnologia_ia: labelOf(TECNOLOGIA_IA, r.tecnologia_ia),
     area: labelOf(AREA, r.area),
     ja_usado: labelOf(JA_USADO, r.ja_usado),
     ponto_atual: labelOf(PONTO_ATUAL, r.ponto_atual),

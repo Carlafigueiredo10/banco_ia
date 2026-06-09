@@ -113,6 +113,18 @@ export const DISPOSICAO_ABERTO: Opcao[] = [
   { value: "parcial_demo", label: "Parcialmente, em versão demo" },
 ];
 
+// Tecnologia de IA (assistida por heurística; rótulos em linguagem simples)
+export const TECNOLOGIA_IA: Opcao[] = [
+  { value: "nlp", label: "Análise de texto / linguagem (NLP)" },
+  { value: "visao", label: "Análise de imagens / vídeo (visão computacional)" },
+  { value: "ml_preditivo", label: "Previsão / classificação (machine learning)" },
+  { value: "recomendacao", label: "Recomendação / sugestão" },
+  { value: "otimizacao", label: "Otimização (rotas, alocação…)" },
+  { value: "fala", label: "Voz / áudio (fala → texto)" },
+  { value: "outro", label: "Outro" },
+  { value: "nao_sei", label: "Não sei" },
+];
+
 // Derivados (sistema)
 export const ESTAGIO: Opcao[] = [
   { value: "pesquisa", label: "Pesquisa (TRL 1-3)" },
@@ -140,6 +152,7 @@ export const LIMITES: Record<string, number> = {
   cidade: 150,
   nome_solucao: 200,
   problema: 3000,
+  como_funciona: 2000,
   links: 3000,
   resultados: 3000,
   observacoes: 3000,

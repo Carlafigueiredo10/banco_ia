@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { BarrasH, BarrasV, CurvaCaptacao, type Serie } from "@/components/admin/Graficos";
 import BrasilMapa from "@/components/admin/BrasilMapa";
 import {
-  STATUS_MATURACAO, ESTAGIO, TIPO_ATIVO, AREA, NIVEL_GOVERNO,
+  STATUS_MATURACAO, ESTAGIO, TIPO_ATIVO, TECNOLOGIA_IA, AREA, NIVEL_GOVERNO,
 } from "@/lib/enums";
 
 const META = 30;
@@ -29,6 +29,7 @@ export default async function IndicadoresPage() {
   const porStatus = contar(rows, "status_maturacao", STATUS_MATURACAO);
   const porEstagio = contar(rows, "estagio", ESTAGIO);
   const porTipo = contar(rows, "tipo_ativo", TIPO_ATIVO);
+  const porTecnologia = contar(rows, "tecnologia_ia", TECNOLOGIA_IA);
   const porArea = contar(rows, "area", AREA);
   const porNivel = contar(rows, "nivel_governo", NIVEL_GOVERNO);
 
@@ -110,6 +111,9 @@ export default async function IndicadoresPage() {
         </Bloco>
         <Bloco titulo="Por tipo de ativo">
           {porTipo.length > 0 ? <BarrasH dados={porTipo} /> : <Vazio />}
+        </Bloco>
+        <Bloco titulo="Por tecnologia de IA">
+          {porTecnologia.length > 0 ? <BarrasH dados={porTecnologia} /> : <Vazio />}
         </Bloco>
         <Bloco titulo="Por área">
           {porArea.length > 0 ? <BarrasH dados={porArea} /> : <Vazio />}

@@ -5,6 +5,7 @@ import {
   NIVEL_GOVERNO,
   UFS,
   TIPO_ATIVO,
+  TECNOLOGIA_IA,
   AREA,
   JA_USADO,
   PONTO_ATUAL,
@@ -41,6 +42,8 @@ const camposSolucao = {
   // Bloco B
   nome_solucao: obrig("nome_solucao"),
   problema: obrig("problema"),
+  como_funciona: opcional("como_funciona"),
+  tecnologia_ia: enumOf(TECNOLOGIA_IA).optional().or(z.literal("")),
   tipo_ativo: enumOf(TIPO_ATIVO),
   area: enumOf(AREA),
   // Bloco C

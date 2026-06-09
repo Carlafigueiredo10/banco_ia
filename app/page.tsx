@@ -22,7 +22,8 @@ export default function Home() {
           <div style={{ maxWidth: 700, margin: "0 auto 24px", color: "#444", fontSize: "1.1rem" }}>
             <p style={{ margin: "0 0 12px" }}>
               Um banco nacional para <strong>encontrar</strong>, <strong>compartilhar</strong> e{" "}
-              <strong>desenvolver</strong> soluções de IA no setor público.
+              <strong>desenvolver</strong> soluções de <strong>Inteligência Artificial (IA)</strong> no
+              setor público.
             </p>
             <p style={{ margin: "0 0 12px" }}>
               De ministérios e prefeituras a universidades, ICTs e especialistas, reunimos iniciativas

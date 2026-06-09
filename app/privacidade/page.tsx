@@ -22,10 +22,15 @@ export default function PrivacidadePage() {
         </Secao>
 
         <Secao titulo="2. Controlador e contato">
-          O tratamento é coordenado pela <strong>ENAP — Escola Nacional de Administração Pública</strong>.
-          Dúvidas e solicitações sobre seus dados podem ser enviadas para o contato da coordenação:{" "}
+          O tratamento é coordenado pelo <strong>LIIA — Laboratório de Inovação em Inteligência
+          Artificial</strong> da <strong>ENAP — Escola Nacional de Administração Pública</strong>.
+          Dúvidas e solicitações sobre seus dados podem ser enviadas para:{" "}
           <a href="mailto:eunice.liu@enap.gov.br" style={{ color: "var(--bbsia-azul)" }}>
             eunice.liu@enap.gov.br
+          </a>{" "}
+          |{" "}
+          <a href="mailto:liia@enap.gov.br" style={{ color: "var(--bbsia-azul)" }}>
+            liia@enap.gov.br
           </a>
           . (Contato do encarregado/DPO a confirmar institucionalmente.)
         </Secao>

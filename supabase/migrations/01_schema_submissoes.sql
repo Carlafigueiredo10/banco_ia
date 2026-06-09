@@ -18,6 +18,8 @@ create table if not exists public.submissoes (
   -- Bloco B — a solução
   nome_solucao        text not null check (char_length(nome_solucao) <= 200),
   problema            text not null check (char_length(problema) <= 3000),
+  como_funciona       text check (char_length(como_funciona) <= 2000),
+  tecnologia_ia       text check (tecnologia_ia is null or tecnologia_ia in ('nlp','visao','ml_preditivo','recomendacao','otimizacao','fala','outro','nao_sei')),
   tipo_ativo          text not null check (tipo_ativo in ('codigo','api','dataset','agente','modelo','publicacao','guia','outro')),
   area                text not null check (area in ('saude','educacao','seguranca','fazenda','meio_ambiente','gestao_publica','administracao','outro')),
 

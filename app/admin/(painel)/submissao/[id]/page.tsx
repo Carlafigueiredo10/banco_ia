@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { atualizarCuradoria, anonimizar } from "@/lib/actions";
 import {
-  labelOf, NIVEL_GOVERNO, TIPO_ATIVO, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
+  labelOf, NIVEL_GOVERNO, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO, STATUS_MATURACAO, UFS,
 } from "@/lib/enums";
 import { EstagioBadge } from "@/components/admin/Badge";
@@ -58,6 +58,8 @@ export default async function DetalhePage({
         <section>
           <h2 style={h2}>Solução</h2>
           <Campo rotulo="Problema que resolve">{s.problema}</Campo>
+          <Campo rotulo="Como funciona">{s.como_funciona ?? "—"}</Campo>
+          <Campo rotulo="Tecnologia de IA">{labelOf(TECNOLOGIA_IA, s.tecnologia_ia)}</Campo>
           <Campo rotulo="Tipo de ativo">{labelOf(TIPO_ATIVO, s.tipo_ativo)}</Campo>
           <Campo rotulo="Área">{labelOf(AREA, s.area)}</Campo>
           <Campo rotulo="Links">{multilinha(s.links)}</Campo>
@@ -101,6 +103,12 @@ export default async function DetalhePage({
               <label style={lbl}>Status de maturação
                 <select name="status_maturacao" defaultValue={s.status_maturacao} style={ctrl}>
                   {STATUS_MATURACAO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </label>
+              <label style={lbl}>Tecnologia de IA (confirme/ajuste a sugestão)
+                <select name="tecnologia_ia" defaultValue={s.tecnologia_ia ?? ""} style={ctrl}>
+                  <option value="">—</option>
+                  {TECNOLOGIA_IA.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </label>
               <label style={lbl}>Encaminhamento (motivo + próximo passo)

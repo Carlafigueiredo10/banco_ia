@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   codes, LIMITES,
-  NIVEL_GOVERNO, UFS, TIPO_ATIVO, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
+  NIVEL_GOVERNO, UFS, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO,
   STATUS_MATURACAO, ESTAGIO,
 } from "../lib/enums";
@@ -35,6 +35,7 @@ describe("anti-drift: enums TS ↔ CHECK do SQL", () => {
     ["nivel_governo", NIVEL_GOVERNO],
     ["uf", UFS],
     ["tipo_ativo", TIPO_ATIVO],
+    ["tecnologia_ia", TECNOLOGIA_IA],
     ["area", AREA],
     ["ja_usado", JA_USADO],
     ["ponto_atual", PONTO_ATUAL],

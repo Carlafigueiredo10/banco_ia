@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TextField, TextAreaField, SelectField, CheckboxField, CidadeField } from "./fields";
@@ -8,6 +8,7 @@ import {
   NIVEL_GOVERNO,
   UFS,
   TIPO_ATIVO,
+  TECNOLOGIA_IA,
   AREA,
   JA_USADO,
   PONTO_ATUAL,
@@ -22,10 +23,11 @@ import {
 } from "@/lib/enums";
 import { submissaoSchema } from "@/lib/validation";
 import { calcEstagio, type JaUsado, type PontoAtual } from "@/lib/estagio";
+import { inferirTecnologia } from "@/lib/tecnologia";
 
 type CampoTexto =
   | "email" | "nome_completo" | "cargo" | "telefone" | "orgao" | "nivel_governo" | "uf" | "cidade"
-  | "nome_solucao" | "problema" | "tipo_ativo" | "area" | "ja_usado" | "ponto_atual"
+  | "nome_solucao" | "problema" | "como_funciona" | "tecnologia_ia" | "tipo_ativo" | "area" | "ja_usado" | "ponto_atual"
   | "aberta" | "recursos_publicos" | "soberania" | "dado_sensivel"
   | "links" | "resultados" | "disposicao_aberto" | "observacoes" | "website";
 
@@ -33,7 +35,7 @@ type FormState = Record<CampoTexto, string> & { consentimento_lgpd: boolean };
 
 const inicial: FormState = {
   email: "", nome_completo: "", cargo: "", telefone: "", orgao: "", nivel_governo: "", uf: "", cidade: "",
-  nome_solucao: "", problema: "", tipo_ativo: "", area: "",
+  nome_solucao: "", problema: "", como_funciona: "", tecnologia_ia: "", tipo_ativo: "", area: "",
   ja_usado: "", ponto_atual: "",
   aberta: "", recursos_publicos: "", soberania: "", dado_sensivel: "",
   links: "", resultados: "", disposicao_aberto: "", observacoes: "",
@@ -55,6 +57,8 @@ export default function SubmissaoForm() {
   const [erros, setErros] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
   const [erroGeral, setErroGeral] = useState<string | null>(null);
+  // Enquanto o usuário não mexer manualmente, a tecnologia é sugerida pela heurística.
+  const [tecManual, setTecManual] = useState(false);
 
   const set = (campo: CampoTexto) => (v: string) => setForm((f) => ({ ...f, [campo]: v }));
 
@@ -62,6 +66,14 @@ export default function SubmissaoForm() {
     form.ponto_atual && form.ja_usado
       ? labelOf(ESTAGIO, calcEstagio(form.ponto_atual as PontoAtual, form.ja_usado as JaUsado))
       : null;
+
+  // Pré-preenche "Tecnologia utilizada" ao vivo a partir do problema + como funciona,
+  // até o usuário escolher manualmente.
+  useEffect(() => {
+    if (tecManual) return;
+    const sug = inferirTecnologia(form.problema, form.como_funciona) ?? "";
+    setForm((f) => (f.tecnologia_ia === sug ? f : { ...f, tecnologia_ia: sug }));
+  }, [form.problema, form.como_funciona, tecManual]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -165,6 +177,45 @@ export default function SubmissaoForm() {
               maxLength={LIMITES.problema}
             />
           </div>
+          <TextAreaField
+            id="como_funciona"
+            label="Como ela funciona? (opcional)"
+            hint="O que ela faz por baixo — pode explicar simples, sem termos técnicos. Ex.: “lê os documentos e resume”, “analisa imagens de satélite”."
+            rows={3}
+            value={form.como_funciona}
+            onChange={set("como_funciona")}
+            error={erros.como_funciona}
+            maxLength={LIMITES.como_funciona}
+          />
+          <SelectField
+            id="tecnologia_ia"
+            label="Tecnologia utilizada (opcional)"
+            hint="Preenchemos uma sugestão com base no que você escreveu — confirme ou ajuste."
+            value={form.tecnologia_ia}
+            onChange={(v) => {
+              setTecManual(true);
+              setForm((f) => ({ ...f, tecnologia_ia: v }));
+            }}
+            options={TECNOLOGIA_IA}
+            error={erros.tecnologia_ia}
+            ajuda={
+              <div>
+                <p style={{ margin: "0 0 6px" }}>
+                  É o <strong>tipo de inteligência</strong> que a solução usa. Não precisa ter certeza —
+                  escolha o mais próximo (ou deixe em branco que a equipe ajuda):
+                </p>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  <li><strong>Análise de texto / linguagem (NLP)</strong> — entende textos, documentos, conversas (chatbots, resumo, classificação de texto).</li>
+                  <li><strong>Análise de imagens / vídeo (visão computacional)</strong> — “enxerga” fotos, vídeos, imagens de satélite, exames.</li>
+                  <li><strong>Previsão / classificação (machine learning)</strong> — prevê ou classifica a partir de dados (risco, evasão, demanda).</li>
+                  <li><strong>Recomendação / sugestão</strong> — indica o item/serviço mais adequado para cada caso.</li>
+                  <li><strong>Otimização</strong> — encontra a melhor combinação (rotas, alocação de equipes, agendas).</li>
+                  <li><strong>Voz / áudio (fala → texto)</strong> — transcreve ou entende áudio e fala.</li>
+                  <li><strong>Outro / Não sei</strong> — se nenhuma encaixa, sem problema.</li>
+                </ul>
+              </div>
+            }
+          />
           <SelectField
             id="tipo_ativo"
             label="Tipo de ativo"
