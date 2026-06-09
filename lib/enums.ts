@@ -43,14 +43,14 @@ export const UFS: Opcao[] = [
 ];
 
 export const TIPO_ATIVO: Opcao[] = [
-  { value: "codigo", label: "Código/software" },
-  { value: "api", label: "API" },
-  { value: "dataset", label: "Dataset" },
-  { value: "agente", label: "Agente/multiagente" },
-  { value: "modelo", label: "Modelo de IA (treinado)" },
-  { value: "publicacao", label: "Publicação/pesquisa científica" },
-  { value: "guia", label: "Guia/material/metodologia" },
-  { value: "outro", label: "Outro" },
+  { value: "codigo", label: "Código ou software (um sistema/programa)" },
+  { value: "api", label: "API (serviço que outros sistemas consultam)" },
+  { value: "dataset", label: "Dataset (uma base de dados)" },
+  { value: "agente", label: "Agente de IA (assistente que executa tarefas)" },
+  { value: "modelo", label: "Modelo de IA treinado" },
+  { value: "publicacao", label: "Publicação ou pesquisa científica" },
+  { value: "guia", label: "Guia, material ou metodologia" },
+  { value: "outro", label: "Outro (descreva nas observações)" },
 ];
 
 export const AREA: Opcao[] = [

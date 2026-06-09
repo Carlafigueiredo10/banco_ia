@@ -156,7 +156,33 @@ export default function SubmissaoForm() {
               maxLength={LIMITES.problema}
             />
           </div>
-          <SelectField id="tipo_ativo" label="Tipo de ativo" required value={form.tipo_ativo} onChange={set("tipo_ativo")} options={TIPO_ATIVO} error={erros.tipo_ativo} />
+          <SelectField
+            id="tipo_ativo"
+            label="Tipo de ativo"
+            required
+            value={form.tipo_ativo}
+            onChange={set("tipo_ativo")}
+            options={TIPO_ATIVO}
+            error={erros.tipo_ativo}
+            hint="É o formato da sua solução. Escolha o que mais se parece — na dúvida, clique no “?”."
+            ajuda={
+              <div>
+                <p style={{ margin: "0 0 6px" }}>
+                  <strong>Tipo de ativo</strong> é o formato do que você está oferecendo. Não precisa ser técnico — escolha o mais parecido:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  <li><strong>Código ou software</strong> — um sistema ou programa que roda.</li>
+                  <li><strong>API</strong> — um serviço que outros sistemas consultam pela internet.</li>
+                  <li><strong>Dataset</strong> — uma base de dados organizada (planilhas, registros…).</li>
+                  <li><strong>Agente de IA</strong> — um assistente que conversa ou executa tarefas sozinho.</li>
+                  <li><strong>Modelo de IA treinado</strong> — um modelo pronto (ex.: que classifica, prevê ou reconhece).</li>
+                  <li><strong>Publicação ou pesquisa científica</strong> — um artigo, estudo ou relatório.</li>
+                  <li><strong>Guia, material ou metodologia</strong> — um documento que orienta como fazer.</li>
+                  <li><strong>Outro</strong> — se nada acima encaixa (explique nas observações).</li>
+                </ul>
+              </div>
+            }
+          />
           <SelectField id="area" label="Área de atuação" required value={form.area} onChange={set("area")} options={AREA} error={erros.area} />
         </section>
 

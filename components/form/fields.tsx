@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Opcao } from "@/lib/enums";
 
 // Primitivas de formulário acessíveis (e-MAG): label associado, aria-describedby
@@ -11,7 +12,51 @@ type Base = {
   required?: boolean;
   error?: string;
   hint?: string;
+  ajuda?: React.ReactNode;
 };
+
+// Rótulo com botão "?" opcional que revela uma explicação (acessível: aria-expanded
+// + aria-controls; o painel é uma região rotulada). Letramento como proteção.
+function LabelComAjuda(props: { id: string; label: string; required?: boolean; ajuda?: React.ReactNode }) {
+  const [aberta, setAberta] = useState(false);
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <label htmlFor={props.id} style={{ fontWeight: 600 }}>
+          {props.label} {props.required && <span aria-hidden style={{ color: "#b3140e" }}>*</span>}
+        </label>
+        {props.ajuda && (
+          <button
+            type="button"
+            onClick={() => setAberta((v) => !v)}
+            aria-expanded={aberta}
+            aria-controls={`${props.id}-ajuda`}
+            aria-label={aberta ? "Esconder explicação" : "O que é isto?"}
+            title="O que é isto?"
+            style={{
+              flexShrink: 0, width: 22, height: 22, borderRadius: "50%",
+              border: "1px solid var(--bbsia-azul)", background: aberta ? "var(--bbsia-azul)" : "#fff",
+              color: aberta ? "#fff" : "var(--bbsia-azul)", cursor: "pointer", fontWeight: 700,
+              fontSize: ".8rem", lineHeight: 1, padding: 0,
+            }}
+          >
+            ?
+          </button>
+        )}
+      </div>
+      {props.ajuda && aberta && (
+        <div
+          id={`${props.id}-ajuda`}
+          role="region"
+          aria-label={`Explicação: ${props.label}`}
+          style={{ background: "#eef3fb", border: "1px solid #c5d4ee", borderRadius: 6, padding: 12, marginBottom: 8, fontSize: ".88rem", lineHeight: 1.5 }}
+        >
+          {props.ajuda}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Erro({ id, msg }: { id: string; msg?: string }) {
   if (!msg) return null;
@@ -31,7 +76,6 @@ function Dica({ id, texto }: { id: string; texto?: string }) {
   );
 }
 
-const labelStyle: React.CSSProperties = { fontWeight: 600, display: "block", marginBottom: 4 };
 const controlStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 12px",
@@ -60,9 +104,7 @@ export function TextField(
 ) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <label htmlFor={props.id} style={labelStyle}>
-        {props.label} {props.required && <span aria-hidden style={{ color: "#b3140e" }}>*</span>}
-      </label>
+      <LabelComAjuda id={props.id} label={props.label} required={props.required} ajuda={props.ajuda} />
       <Dica id={`${props.id}-hint`} texto={props.hint} />
       <input
         id={props.id}
@@ -88,9 +130,7 @@ export function TextAreaField(
 ) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <label htmlFor={props.id} style={labelStyle}>
-        {props.label} {props.required && <span aria-hidden style={{ color: "#b3140e" }}>*</span>}
-      </label>
+      <LabelComAjuda id={props.id} label={props.label} required={props.required} ajuda={props.ajuda} />
       <Dica id={`${props.id}-hint`} texto={props.hint} />
       <textarea
         id={props.id}
@@ -115,9 +155,7 @@ export function SelectField(
 ) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <label htmlFor={props.id} style={labelStyle}>
-        {props.label} {props.required && <span aria-hidden style={{ color: "#b3140e" }}>*</span>}
-      </label>
+      <LabelComAjuda id={props.id} label={props.label} required={props.required} ajuda={props.ajuda} />
       <Dica id={`${props.id}-hint`} texto={props.hint} />
       <select
         id={props.id}

@@ -16,8 +16,10 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        // Não cria usuário novo: só e-mails já previstos como admin entram.
-        shouldCreateUser: false,
+        // A AUTORIZAÇÃO é a tabela `admins` + RLS (o callback desloga quem não é
+        // admin e manda para /admin/acesso-negado). Por isso deixamos o magic link
+        // criar a conta de auth — senão o 1º login de um admin recém-convidado falha.
+        shouldCreateUser: true,
         emailRedirectTo: `${window.location.origin}/auth/callback?redirect=/admin`,
       },
     });

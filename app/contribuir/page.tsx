@@ -12,7 +12,7 @@ export default function ContribuirPage() {
     <>
       <Header />
       <Main>
-        <h1 style={{ fontSize: "1.8rem", marginBottom: 12 }}>Oferecer uma solução</h1>
+        <h1 style={{ fontSize: "1.8rem", marginBottom: 12 }}>Compartilhar uma solução ou ideia</h1>
         <div
           style={{ background: "#eef3fb", border: "1px solid #c5d4ee", borderRadius: 6, padding: 16, marginBottom: 28 }}
         >
