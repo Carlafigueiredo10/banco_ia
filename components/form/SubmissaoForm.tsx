@@ -113,17 +113,30 @@ export default function SubmissaoForm() {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 32, alignItems: "start" }}>
-      {/* Progresso por blocos (âncoras — não esconde campos) */}
-      <nav aria-label="Seções do formulário" style={{ position: "sticky", top: 16 }}>
-        <p style={{ fontWeight: 700, marginBottom: 8 }}>Seções</p>
-        <ol style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 2 }}>
-          {BLOCOS.map((b) => (
-            <li key={b.id}>
-              <a href={`#${b.id}`} style={{ color: "var(--bbsia-azul)" }}>{b.nome}</a>
-            </li>
-          ))}
-        </ol>
+    <div>
+      {/* Barra superior de seções (âncoras) — fixa no topo, rola na horizontal no
+          celular; não ocupa largura do formulário. */}
+      <nav
+        aria-label="Seções do formulário"
+        style={{
+          position: "sticky", top: 0, zIndex: 10, background: "#fff",
+          borderBottom: "1px solid #e3e8f0", padding: "8px 0", marginBottom: 20,
+          display: "flex", gap: 8, overflowX: "auto",
+        }}
+      >
+        {BLOCOS.map((b, i) => (
+          <a
+            key={b.id}
+            href={`#${b.id}`}
+            style={{
+              flex: "0 0 auto", color: "var(--bbsia-azul)", border: "1px solid #c5d4ee",
+              borderRadius: 16, padding: "4px 12px", fontSize: ".85rem", textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {i + 1}. {b.nome}
+          </a>
+        ))}
       </nav>
 
       <form onSubmit={onSubmit} noValidate>
