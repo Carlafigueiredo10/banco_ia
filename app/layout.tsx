@@ -21,7 +21,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={raleway.variable}>
+    <html lang="pt-BR" data-scroll-behavior="smooth" className={raleway.variable}>
       <body className="min-h-screen flex flex-col">
         <a className="br-skip-link sr-only focus:not-sr-only" href="#conteudo">
           Ir para o conteúdo

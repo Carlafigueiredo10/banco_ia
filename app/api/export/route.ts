@@ -28,6 +28,7 @@ const COLUNAS = [
   { key: "resultados", header: "Resultados" },
   { key: "disposicao_aberto", header: "Disposição (aberto)" },
   { key: "email", header: "E-mail" },
+  { key: "telefone", header: "WhatsApp/Telefone" },
   { key: "nome_completo", header: "Nome" },
   { key: "cargo", header: "Cargo" },
   { key: "encaminhamento", header: "Encaminhamento" },

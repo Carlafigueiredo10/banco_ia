@@ -38,8 +38,9 @@ export default function PrivacidadePage() {
         </Secao>
 
         <Secao titulo="4. Dados coletados (minimização)">
-          Coletamos apenas o necessário: <strong>nome, e-mail, cargo (opcional), órgão, nível de
-          governo, UF e cidade</strong>, além das informações sobre a solução. Pedimos
+          Coletamos apenas o necessário: <strong>nome, e-mail, cargo (opcional), telefone/WhatsApp
+          (opcional), órgão, nível de governo, UF e cidade</strong>, além das informações sobre a
+          solução. Pedimos
           expressamente que <strong>não</strong> sejam inseridos dados pessoais de terceiros,
           segredos, chaves, credenciais, bases completas ou informações sigilosas.
         </Secao>

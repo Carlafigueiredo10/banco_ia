@@ -9,6 +9,7 @@ create table if not exists public.submissoes (
   email               text not null check (char_length(email) <= 320),
   nome_completo       text not null check (char_length(nome_completo) <= 200),
   cargo               text check (char_length(cargo) <= 150),
+  telefone            text check (char_length(telefone) <= 20),
   orgao               text not null check (char_length(orgao) <= 250),
   nivel_governo       text not null check (nivel_governo in ('federal','estadual','municipal','academia_ict','privado','outro')),
   uf                  char(2) not null check (uf in ('AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO')),

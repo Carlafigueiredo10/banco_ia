@@ -2,11 +2,12 @@ import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
 
 const DIFERENCIAIS = [
-  { t: "Compartilhe soluções e ideias", d: "De código pronto a uma ideia em fase inicial, todos podem contribuir. Cada solução informa se pode ser reutilizada por outros órgãos e onde é executada — infraestrutura nacional, própria ou serviços externos. Soberania transparente e verificável." },
-  { t: "Comece pelo problema", d: "Você descreve o problema em linguagem simples. O sistema classifica, organiza e encaminha para soluções, especialistas ou iniciativas relacionadas." },
-  { t: "Evolua com apoio", d: "O estágio de cada iniciativa é definido com base em evidências, não em autodeclarações. Ideias em fase inicial são bem-vindas e podem evoluir com apoio da comunidade." },
-  { t: "Avaliação transparente", d: "A IA identifica duplicidades e ajuda a organizar as contribuições. A decisão final é sempre humana. Nenhuma proposta é descartada sem avaliação." },
-  { t: "Conexões para realizar", d: "Conectamos pessoas, parceiros e conhecimento. Toda recomendação pode ser rastreada até a origem — transparência, participação e compreensão como proteção contra erros e vieses." },
+  { t: "Compartilhe soluções e ideias", d: "De uma solução já implementada a uma ideia em fase inicial, queremos mapear iniciativas que possam contribuir para a transformação do setor público. Cada contribuição ajuda a construir um catálogo nacional de referência." },
+  { t: "Comece pelo problema", d: "Descreva o desafio que você enfrenta ou a oportunidade que identificou. As contribuições são organizadas pelo problema que procuram resolver, não pela tecnologia utilizada." },
+  { t: "Catálogo nacional", d: "Estamos reunindo experiências, projetos e soluções de diferentes órgãos, universidades, ICTs e organizações para criar uma base aberta de conhecimento sobre IA no setor público." },
+  { t: "Avaliação transparente", d: "Toda contribuição é analisada. Nenhuma proposta é descartada sem retorno, classificação ou encaminhamento adequado." },
+  { t: "Soberania e reutilização", d: "Cada iniciativa informa seu nível de reutilização e dependência tecnológica. O objetivo é facilitar a adoção responsável e a transparência sobre infraestrutura e serviços utilizados." },
+  { t: "Construindo o próximo passo", d: "Estamos começando pelo mapeamento de soluções e ideias. No futuro, o catálogo poderá apoiar conexões entre desafios, especialistas, desenvolvedores e instituições interessadas em transformar boas propostas em projetos reais." },
 ];
 
 export default function Home() {
@@ -15,8 +16,8 @@ export default function Home() {
       <Header />
       <Main>
         <section style={{ textAlign: "center", padding: "24px 0 8px" }}>
-          <h1 style={{ fontSize: "2.2rem", lineHeight: 1.2, marginBottom: 16 }}>
-            O radar das soluções de IA que já funcionam no serviço público brasileiro
+          <h1 style={{ fontSize: "2.2rem", lineHeight: 1.2, marginBottom: 16, maxWidth: 760, marginInline: "auto" }}>
+            Banco de Soluções de IA para a Gestão Pública Brasileira
           </h1>
           <div style={{ maxWidth: 700, margin: "0 auto 24px", color: "#444", fontSize: "1.1rem" }}>
             <p style={{ margin: "0 0 12px" }}>
@@ -25,11 +26,11 @@ export default function Home() {
             </p>
             <p style={{ margin: "0 0 12px" }}>
               De ministérios e prefeituras a universidades, ICTs e especialistas, reunimos iniciativas
-              organizadas <strong>pelo problema que resolvem</strong> — não pela categoria técnica.
+              organizadas <strong>pelo problema que resolvem</strong>.
             </p>
             <p style={{ margin: 0 }}>
-              Também conectamos pessoas com ideias, parceiros e conhecimento para transformar boas
-              propostas em projetos reais.
+              Estamos construindo uma base nacional de soluções e ideias para aproximar desafios,
+              conhecimento e oportunidades de colaboração no setor público.
             </p>
           </div>
           <Link

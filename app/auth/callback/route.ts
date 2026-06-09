@@ -7,7 +7,8 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
-  const redirect = url.searchParams.get("redirect") ?? "/admin";
+  // `next` (ex.: definir senha no 1º acesso) tem prioridade sobre `redirect`.
+  const destino = url.searchParams.get("next") ?? url.searchParams.get("redirect") ?? "/admin";
 
   const supabase = await createSupabaseServerClient();
 
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     if (data) {
       // Registra login admin bem-sucedido na trilha de auditoria
       await supabase.from("auditoria").insert({ ator_email: user.email, acao: "login" });
-      return NextResponse.redirect(new URL(redirect, url.origin));
+      return NextResponse.redirect(new URL(destino, url.origin));
     }
   }
 

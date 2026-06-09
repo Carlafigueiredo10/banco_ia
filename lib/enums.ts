@@ -135,6 +135,7 @@ export const LIMITES: Record<string, number> = {
   email: 320,
   nome_completo: 200,
   cargo: 150,
+  telefone: 20,
   orgao: 250,
   cidade: 150,
   nome_solucao: 200,

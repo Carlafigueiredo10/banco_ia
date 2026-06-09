@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import type { Opcao } from "@/lib/enums";
+import municipios from "@/lib/geo/municipios.json";
+
+const MUNICIPIOS = municipios as Record<string, string[]>;
 
 // Primitivas de formulário acessíveis (e-MAG): label associado, aria-describedby
 // ligando erro/dica ao campo, aria-invalid, required marcado visual e semanticamente.
@@ -175,6 +178,45 @@ export function SelectField(
           </option>
         ))}
       </select>
+      <Erro id={`${props.id}-err`} msg={props.error} />
+    </div>
+  );
+}
+
+// Cidade: campo de TEXTO (sempre digitável) com sugestões do IBGE filtradas pela
+// UF, via <datalist> — você digita e filtra, sem rolar lista; aceita texto livre.
+export function CidadeField(
+  props: Base & { value: string; onChange: (v: string) => void; uf: string }
+) {
+  const listId = `${props.id}-lista`;
+  const lista = props.uf ? MUNICIPIOS[props.uf] ?? [] : [];
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <LabelComAjuda id={props.id} label={props.label} required={props.required} ajuda={props.ajuda} />
+      <Dica
+        id={`${props.id}-hint`}
+        texto={props.hint ?? (props.uf ? "Comece a digitar — as cidades aparecem como sugestão. Pode digitar livremente." : "Dica: escolha o estado para ver as sugestões de cidade (você pode digitar mesmo assim).")}
+      />
+      <input
+        id={props.id}
+        name={props.id}
+        list={lista.length ? listId : undefined}
+        value={props.value}
+        required={props.required}
+        aria-required={props.required}
+        aria-invalid={!!props.error}
+        aria-describedby={described(props)}
+        autoComplete="off"
+        onChange={(e) => props.onChange(e.target.value)}
+        style={{ ...controlStyle, borderColor: props.error ? "#b3140e" : "#888" }}
+      />
+      {lista.length > 0 && (
+        <datalist id={listId}>
+          {lista.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      )}
       <Erro id={`${props.id}-err`} msg={props.error} />
     </div>
   );

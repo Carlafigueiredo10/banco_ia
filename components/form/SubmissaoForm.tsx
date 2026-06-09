@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { TextField, TextAreaField, SelectField, CheckboxField } from "./fields";
+import { TextField, TextAreaField, SelectField, CheckboxField, CidadeField } from "./fields";
 import {
   NIVEL_GOVERNO,
   UFS,
@@ -24,7 +24,7 @@ import { submissaoSchema } from "@/lib/validation";
 import { calcEstagio, type JaUsado, type PontoAtual } from "@/lib/estagio";
 
 type CampoTexto =
-  | "email" | "nome_completo" | "cargo" | "orgao" | "nivel_governo" | "uf" | "cidade"
+  | "email" | "nome_completo" | "cargo" | "telefone" | "orgao" | "nivel_governo" | "uf" | "cidade"
   | "nome_solucao" | "problema" | "tipo_ativo" | "area" | "ja_usado" | "ponto_atual"
   | "aberta" | "recursos_publicos" | "soberania" | "dado_sensivel"
   | "links" | "resultados" | "disposicao_aberto" | "observacoes" | "website";
@@ -32,7 +32,7 @@ type CampoTexto =
 type FormState = Record<CampoTexto, string> & { consentimento_lgpd: boolean };
 
 const inicial: FormState = {
-  email: "", nome_completo: "", cargo: "", orgao: "", nivel_governo: "", uf: "", cidade: "",
+  email: "", nome_completo: "", cargo: "", telefone: "", orgao: "", nivel_governo: "", uf: "", cidade: "",
   nome_solucao: "", problema: "", tipo_ativo: "", area: "",
   ja_usado: "", ponto_atual: "",
   aberta: "", recursos_publicos: "", soberania: "", dado_sensivel: "",
@@ -134,10 +134,19 @@ export default function SubmissaoForm() {
           <TextField id="email" label="E-mail" type="email" required value={form.email} onChange={set("email")} error={erros.email} maxLength={LIMITES.email} />
           <TextField id="nome_completo" label="Nome completo" required value={form.nome_completo} onChange={set("nome_completo")} error={erros.nome_completo} maxLength={LIMITES.nome_completo} />
           <TextField id="cargo" label="Cargo" value={form.cargo} onChange={set("cargo")} error={erros.cargo} maxLength={LIMITES.cargo} />
+          <TextField id="telefone" label="WhatsApp / telefone (opcional)" type="tel" hint="Canal de contato alternativo ao e-mail — útil se o e-mail institucional demorar." value={form.telefone} onChange={set("telefone")} error={erros.telefone} maxLength={LIMITES.telefone} />
           <TextField id="orgao" label="Órgão / Entidade / Empresa" required value={form.orgao} onChange={set("orgao")} error={erros.orgao} maxLength={LIMITES.orgao} />
           <SelectField id="nivel_governo" label="Nível de governo" required value={form.nivel_governo} onChange={set("nivel_governo")} options={NIVEL_GOVERNO} error={erros.nivel_governo} />
-          <SelectField id="uf" label="Estado (UF)" required value={form.uf} onChange={set("uf")} options={UFS} error={erros.uf} />
-          <TextField id="cidade" label="Cidade / Município" required value={form.cidade} onChange={set("cidade")} error={erros.cidade} maxLength={LIMITES.cidade} />
+          <SelectField
+            id="uf"
+            label="Estado (UF)"
+            required
+            value={form.uf}
+            onChange={(v) => setForm((f) => ({ ...f, uf: v, cidade: "" }))}
+            options={UFS}
+            error={erros.uf}
+          />
+          <CidadeField id="cidade" label="Cidade / Município" required uf={form.uf} value={form.cidade} onChange={set("cidade")} error={erros.cidade} />
         </section>
 
         <section id="bloco-solucao" aria-labelledby="h-sol">

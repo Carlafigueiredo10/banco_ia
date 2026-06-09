@@ -22,6 +22,22 @@ body {
   background: #fff;
 }
 
+/* Evita quebras feias: títulos balanceados, parágrafos sem órfãs, sem cortar palavra. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+p {
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
+}
+
 /* Acessibilidade: classe utilitária para conteúdo só-leitor de tela */
 .sr-only {
   position: absolute;

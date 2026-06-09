@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { BarrasH, BarrasV, CurvaCaptacao, type Serie } from "@/components/admin/Graficos";
-import UfTileMap from "@/components/admin/UfTileMap";
+import BrasilMapa from "@/components/admin/BrasilMapa";
 import {
   STATUS_MATURACAO, ESTAGIO, TIPO_ATIVO, AREA, NIVEL_GOVERNO,
 } from "@/lib/enums";
@@ -121,7 +121,7 @@ export default async function IndicadoresPage() {
           {porUfBarras.length > 0 ? <BarrasV dados={porUfBarras} /> : <Vazio />}
         </Bloco>
         <Bloco titulo="Mapa por UF (volume)">
-          <UfTileMap dados={porUF} />
+          <BrasilMapa dados={porUF} />
         </Bloco>
         <Bloco titulo="Top órgãos contribuintes">
           {topOrgaos.length > 0 ? <BarrasH dados={topOrgaos} altura={260} /> : <Vazio />}

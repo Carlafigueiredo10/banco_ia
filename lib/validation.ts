@@ -33,6 +33,7 @@ const camposSolucao = {
   email: z.string().trim().email("E-mail inválido").max(LIMITES.email),
   nome_completo: obrig("nome_completo"),
   cargo: z.string().trim().max(LIMITES.cargo).optional().or(z.literal("")),
+  telefone: z.string().trim().max(LIMITES.telefone).optional().or(z.literal("")),
   orgao: obrig("orgao"),
   nivel_governo: enumOf(NIVEL_GOVERNO),
   uf: enumOf(UFS),

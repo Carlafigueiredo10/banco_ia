@@ -82,6 +82,7 @@ export default async function DetalhePage({
           )}
           <Campo rotulo="Nome">{s.nome_completo}</Campo>
           <Campo rotulo="E-mail">{s.email}</Campo>
+          <Campo rotulo="WhatsApp / telefone">{s.telefone ?? "—"}</Campo>
           <Campo rotulo="Cargo">{s.cargo ?? "—"}</Campo>
           <Campo rotulo="Órgão">{s.orgao}</Campo>
           <Campo rotulo="Nível / UF / Cidade">
