@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "import:solucoes": "tsx scripts/import-solucoes.ts"
+    "import:solucoes": "tsx scripts/import-solucoes.ts",
+    "seed:catalogo": "tsx scripts/seed-catalogo.ts"
   },
   "dependencies": {
     "@govbr-ds/core": "^3.7.0",

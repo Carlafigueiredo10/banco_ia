@@ -1,5 +1,16 @@
 import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
+
+export const dynamic = "force-dynamic";
+
+type Contadores = {
+  solucoes_mapeadas: number;
+  publicadas: number;
+  em_curadoria: number;
+  apis_bases: number;
+  repositorios: number;
+};
 
 const DIFERENCIAIS = [
   { t: "Compartilhe soluções e ideias", d: "De uma solução já implementada a uma ideia em fase inicial, queremos mapear iniciativas que possam contribuir para a transformação do setor público. Cada contribuição ajuda a construir um catálogo nacional de referência." },
@@ -10,7 +21,12 @@ const DIFERENCIAIS = [
   { t: "Construindo o próximo passo", d: "Estamos começando pelo mapeamento de soluções e ideias. No futuro, o catálogo poderá apoiar conexões entre desafios, especialistas, desenvolvedores e instituições interessadas em transformar boas propostas em projetos reais." },
 ];
 
-export default function Home() {
+export default async function Home() {
+  // Contadores agregados via RPC SECURITY DEFINER (sem expor linhas/PII de submissoes).
+  const supabase = createSupabaseAnonClient();
+  const { data } = await supabase.rpc("contadores_publicos");
+  const c = (data ?? null) as Contadores | null;
+
   return (
     <>
       <Header />
@@ -34,16 +50,38 @@ export default function Home() {
               conhecimento e oportunidades de colaboração no setor público.
             </p>
           </div>
-          <Link
-            href="/contribuir"
-            style={{
-              display: "inline-block", background: "var(--bbsia-azul)", color: "#fff",
-              borderRadius: 24, padding: "14px 32px", fontSize: "1.05rem", fontWeight: 700, textDecoration: "none",
-            }}
-          >
-            Compartilhar uma solução ou ideia
-          </Link>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link
+              href="/contribuir"
+              style={{
+                display: "inline-block", background: "var(--bbsia-azul)", color: "#fff",
+                borderRadius: 24, padding: "14px 32px", fontSize: "1.05rem", fontWeight: 700, textDecoration: "none",
+              }}
+            >
+              Compartilhar uma solução ou ideia
+            </Link>
+            <Link
+              href="/catalogo"
+              style={{
+                display: "inline-block", background: "#fff", color: "var(--bbsia-azul)",
+                border: "2px solid var(--bbsia-azul)", borderRadius: 24, padding: "12px 28px",
+                fontSize: "1.05rem", fontWeight: 700, textDecoration: "none",
+              }}
+            >
+              Explorar o catálogo
+            </Link>
+          </div>
         </section>
+
+        {c && (
+          <section aria-label="Números do banco" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+            <Numero valor={c.solucoes_mapeadas} rotulo="Soluções mapeadas" href="/catalogo" />
+            <Numero valor={c.publicadas} rotulo="Soluções publicadas" href="/catalogo" />
+            <Numero valor={c.em_curadoria} rotulo="Em curadoria" />
+            <Numero valor={c.apis_bases} rotulo="APIs e bases públicas" href="/fundacao" />
+            <Numero valor={c.repositorios} rotulo="Repositórios de referência" href="/fundacao" />
+          </section>
+        )}
 
         <section aria-label="Como funciona" style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
           {DIFERENCIAIS.map((x, i) => (
@@ -62,4 +100,16 @@ export default function Home() {
       <Footer />
     </>
   );
+}
+
+function Numero({ valor, rotulo, href }: { valor: number; rotulo: string; href?: string }) {
+  const corpo = (
+    <div style={{ border: "1px solid #d9e1ef", borderRadius: 8, padding: "14px 16px", textAlign: "center", height: "100%" }}>
+      <div style={{ fontSize: "1.9rem", fontWeight: 800, color: "var(--bbsia-azul-escuro)" }}>{valor}</div>
+      <div style={{ fontSize: ".8rem", color: "#666" }}>{rotulo}</div>
+    </div>
+  );
+  return href ? (
+    <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>{corpo}</Link>
+  ) : corpo;
 }

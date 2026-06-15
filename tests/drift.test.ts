@@ -6,6 +6,8 @@ import {
   NIVEL_GOVERNO, UFS, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO,
   STATUS_MATURACAO, ESTAGIO,
+  FUNDACAO_TIPO, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
+  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES,
 } from "../lib/enums";
 import { calcEstagio, type PontoAtual, type JaUsado } from "../lib/estagio";
 
@@ -13,6 +15,26 @@ const schema = readFileSync(
   resolve(__dirname, "../supabase/migrations/01_schema_submissoes.sql"),
   "utf8"
 );
+
+// Migration das vitrines (item 5/7) — lida SEPARADAMENTE para evitar colisão de regex
+// (ex.: `soberania` existe nos dois arquivos com valores diferentes).
+const schema11 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/11_vitrines_fundacao_catalogo.sql"),
+  "utf8"
+);
+function valoresSql11(col: string): string[] {
+  const re = new RegExp(`${col} in \\(([^)]*)\\)`);
+  const m = schema11.match(re);
+  if (!m) throw new Error(`CHECK não encontrado para ${col} em 11_*`);
+  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+}
+// modalidades é validada por elemento: `modalidades <@ array['a','b',...]::text[]`
+function valoresSqlArray11(col: string): string[] {
+  const re = new RegExp(`${col} <@ array\\[([^\\]]*)\\]`);
+  const m = schema11.match(re);
+  if (!m) throw new Error(`array CHECK não encontrado para ${col} em 11_*`);
+  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+}
 
 // Extrai o conjunto de valores de um CHECK `... <col> in ('a','b',...)`.
 function valoresSql(col: string): string[] {
@@ -52,6 +74,26 @@ describe("anti-drift: enums TS ↔ CHECK do SQL", () => {
       expect(new Set(codes(opcoes))).toEqual(new Set(valoresSql(col)));
     });
   }
+});
+
+describe("anti-drift: enums das vitrines (item 5/7) TS ↔ CHECK do SQL (migration 11)", () => {
+  const casos: [string, { value: string }[]][] = [
+    ["tipo", FUNDACAO_TIPO],          // fundacao.tipo (repo|fonte_dados)
+    ["status", STATUS_SOLUCAO],
+    ["nivel_risco", NIVEL_RISCO],
+    ["tipo_solucao", TIPO_SOLUCAO],
+    ["supervisao", SUPERVISAO],
+    ["soberania", SOBERANIA_CATALOGO], // valores do catálogo, não os do formulário
+    ["bloco", BLOCO_ORIGEM],
+  ];
+  for (const [col, opcoes] of casos) {
+    it(`${col}: códigos batem`, () => {
+      expect(new Set(codes(opcoes))).toEqual(new Set(valoresSql11(col)));
+    });
+  }
+  it("modalidades: códigos batem (array <@)", () => {
+    expect(new Set(codes(MODALIDADES))).toEqual(new Set(valoresSqlArray11("modalidades")));
+  });
 });
 
 describe("anti-drift: limites Zod ≤ CHECK do SQL", () => {

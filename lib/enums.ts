@@ -141,6 +141,74 @@ export const STATUS_MATURACAO: Opcao[] = [
   { value: "validada", label: "Validada" },
 ];
 
+// =====================================================================================
+// Vitrines de referência — Fundação (item 5) e Catálogo de Soluções (item 7, taxonomia LIIA).
+// Espelham os CHECK de supabase/migrations/11_vitrines_fundacao_catalogo.sql (anti-drift).
+// =====================================================================================
+
+// Fundação (item 5) — tipo de entidade de base
+export const FUNDACAO_TIPO: Opcao[] = [
+  { value: "repo", label: "Repositório open-source" },
+  { value: "fonte_dados", label: "API / base de dados" },
+];
+
+// Catálogo (item 7) — ciclo de vida LIIA
+export const STATUS_SOLUCAO: Opcao[] = [
+  { value: "ativo", label: "Ativo" },
+  { value: "em_revisao", label: "Em revisão" },
+  { value: "suspenso", label: "Suspenso" },
+  { value: "descontinuado", label: "Descontinuado" },
+  { value: "arquivado", label: "Arquivado" },
+];
+
+// Catálogo — nível de risco (EU AI Act / PL 2338/2023)
+export const NIVEL_RISCO: Opcao[] = [
+  { value: "inaceitavel", label: "Inaceitável" },
+  { value: "alto", label: "Alto" },
+  { value: "limitado", label: "Limitado" },
+  { value: "minimo", label: "Mínimo" },
+];
+
+// Catálogo — tipo de solução (LIIA)
+export const TIPO_SOLUCAO: Opcao[] = [
+  { value: "modelo", label: "Modelo" },
+  { value: "dataset", label: "Dataset" },
+  { value: "pipeline", label: "Pipeline" },
+  { value: "agente", label: "Agente" },
+  { value: "ferramenta", label: "Ferramenta" },
+];
+
+// Catálogo — supervisão humana (nível)
+export const SUPERVISAO: Opcao[] = [
+  { value: "monitoramento_passivo", label: "Monitoramento passivo" },
+  { value: "revisao_amostral", label: "Revisão amostral" },
+  { value: "revisao_obrigatoria", label: "Revisão obrigatória" },
+];
+
+// Catálogo — soberania de dados (hospedagem). Distinto do enum SOBERANIA do formulário.
+export const SOBERANIA_CATALOGO: Opcao[] = [
+  { value: "brasil_soberano", label: "Brasil — soberano" },
+  { value: "brasil_comercial", label: "Brasil — comercial" },
+  { value: "externo", label: "Externo" },
+  { value: "nao_se_aplica", label: "Não se aplica" },
+];
+
+// Catálogo — bloco de origem (proveniência no PDF BBSIA v5.0, item 7)
+export const BLOCO_ORIGEM: Opcao[] = [
+  { value: "gov", label: "Governamental (7.1.A)" },
+  { value: "mgi", label: "Mapeada MGI (7.1.B)" },
+  { value: "formulario", label: "Auto-declarada (7.1.C)" },
+  { value: "software_publico", label: "Software Público (7.1.D)" },
+];
+
+// Catálogo — modalidades (coleção; validada por elemento via `<@ array[...]` no SQL)
+export const MODALIDADES: Opcao[] = [
+  { value: "texto", label: "Texto" },
+  { value: "imagem", label: "Imagem" },
+  { value: "audio", label: "Áudio" },
+  { value: "tabular", label: "Tabular" },
+];
+
 // Limites de tamanho dos campos textuais (espelham os CHECK char_length do SQL).
 // O teste anti-drift garante Zod <= CHECK.
 export const LIMITES: Record<string, number> = {

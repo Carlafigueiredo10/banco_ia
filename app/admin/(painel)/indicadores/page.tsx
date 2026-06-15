@@ -3,6 +3,7 @@ import { BarrasH, BarrasV, CurvaCaptacao, type Serie } from "@/components/admin/
 import BrasilMapa from "@/components/admin/BrasilMapa";
 import {
   STATUS_MATURACAO, ESTAGIO, TIPO_ATIVO, TECNOLOGIA_IA, AREA, NIVEL_GOVERNO,
+  BLOCO_ORIGEM, NIVEL_RISCO,
 } from "@/lib/enums";
 
 const META = 30;
@@ -25,6 +26,22 @@ export default async function IndicadoresPage() {
   const { data } = await supabase.from("submissoes").select("*");
   const rows = (data ?? []) as Sub[];
   const total = rows.length;
+
+  // Catálogo e Fundação — blocos SEPARADOS (nunca somados às submissões).
+  const { data: catData } = await supabase.from("catalogo_solucoes").select("*");
+  const cat = (catData ?? []) as Sub[];
+  const catPublicadas = cat.filter((r) => r.publicado).length;
+  const catRevisadas = cat.filter((r) => r.revisado).length;
+  const catPorBloco = contar(cat, "bloco", BLOCO_ORIGEM);
+  const catPorRisco = contar(cat, "nivel_risco", NIVEL_RISCO);
+  const catPorArea = contar(cat, "area", AREA);
+  const catPorNivel = contar(cat, "nivel_governo", NIVEL_GOVERNO);
+
+  const { data: fundData } = await supabase.from("fundacao").select("tipo, publicado");
+  const fund = (fundData ?? []) as Sub[];
+  const fundRepos = fund.filter((r) => r.tipo === "repo").length;
+  const fundFontes = fund.filter((r) => r.tipo === "fonte_dados").length;
+  const fundPublicados = fund.filter((r) => r.publicado).length;
 
   const porStatus = contar(rows, "status_maturacao", STATUS_MATURACAO);
   const porEstagio = contar(rows, "estagio", ESTAGIO);
@@ -88,6 +105,8 @@ export default async function IndicadoresPage() {
           Ainda não há submissões. Os gráficos aparecem assim que as primeiras soluções entrarem.
         </p>
       )}
+
+      <h2 style={tituloBloco}>Captação <span style={subBloco}>· submissões pelo formulário</span></h2>
 
       {/* Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
@@ -158,9 +177,50 @@ export default async function IndicadoresPage() {
           </table>
         ) : <Vazio />}
       </Bloco>
+
+      {/* ===== Bloco 2: Catálogo de soluções (separado — nunca somado às submissões) ===== */}
+      <h2 style={{ ...tituloBloco, marginTop: 40 }}>
+        Catálogo de soluções <span style={subBloco}>· vitrine curada (itens 5/7 do PDF)</span>
+      </h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 16 }}>
+        <Card titulo="Total" valor={`${cat.length}`} sub="soluções catalogadas" />
+        <Card titulo="Publicadas" valor={`${catPublicadas}`} sub="visíveis no público" />
+        <Card titulo="Privadas" valor={`${cat.length - catPublicadas}`} sub="em curadoria" />
+        <Card titulo="Revisadas" valor={`${catRevisadas}`} sub="conferidas" />
+        <Card titulo="Pendentes" valor={`${cat.length - catRevisadas}`} sub="a revisar" />
+      </div>
+      <Grade>
+        <Bloco titulo="Por bloco de origem">
+          {catPorBloco.length > 0 ? <BarrasH dados={catPorBloco} /> : <Vazio />}
+        </Bloco>
+        <Bloco titulo="Por nível de risco">
+          {catPorRisco.length > 0 ? <BarrasH dados={catPorRisco} /> : <Vazio />}
+        </Bloco>
+        <Bloco titulo="Por área">
+          {catPorArea.length > 0 ? <BarrasH dados={catPorArea} /> : <Vazio />}
+        </Bloco>
+        <Bloco titulo="Por nível de governo">
+          {catPorNivel.length > 0 ? <BarrasH dados={catPorNivel} /> : <Vazio />}
+        </Bloco>
+      </Grade>
+
+      {/* ===== Bloco 3: Fundação ===== */}
+      <h2 style={{ ...tituloBloco, marginTop: 40 }}>
+        Fundação <span style={subBloco}>· repositórios e bases de referência (item 5)</span>
+      </h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 8 }}>
+        <Card titulo="Total" valor={`${fund.length}`} sub="entidades de base" />
+        <Card titulo="Repositórios" valor={`${fundRepos}`} sub="open-source" />
+        <Card titulo="Fontes de dados" valor={`${fundFontes}`} sub="APIs/datasets" />
+        <Card titulo="Publicados" valor={`${fundPublicados}`} sub="visíveis no público" />
+        <Card titulo="Privados" valor={`${fund.length - fundPublicados}`} sub="em curadoria" />
+      </div>
     </>
   );
 }
+
+const tituloBloco: React.CSSProperties = { fontSize: "1.15rem", color: "#0c326f", borderBottom: "2px solid #dde3ee", paddingBottom: 6, marginBottom: 16 };
+const subBloco: React.CSSProperties = { fontSize: ".85rem", fontWeight: 400, color: "#888" };
 
 function Card({ titulo, valor, sub }: { titulo: string; valor: string; sub: string }) {
   return (

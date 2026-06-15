@@ -20,8 +20,10 @@ export default async function PainelLayout({
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
           <Link href="/" title="Voltar para a página principal" style={{ color: "#fff", fontWeight: 800, textDecoration: "none" }}>BBSIA</Link>
           <span style={{ color: "#ffffffcc", fontSize: ".9rem" }}>· Coordenação</span>
-          <nav style={{ display: "flex", gap: 16 }}>
+          <nav style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <Link href="/admin" style={{ color: "#fff" }}>Submissões</Link>
+            <Link href="/admin/catalogo" style={{ color: "#fff" }}>Catálogo</Link>
+            <Link href="/admin/fundacao" style={{ color: "#fff" }}>Fundação</Link>
             <Link href="/admin/indicadores" style={{ color: "#fff" }}>Indicadores</Link>
             <Link href="/admin/admins" style={{ color: "#fff" }}>Admins</Link>
           </nav>

@@ -47,6 +47,14 @@ export default async function DetalhePage({
             ⚠ Revisar — inseguro reusar em produção
           </span>
         )}
+        {!anonimizada && (
+          <Link
+            href={`/admin/submissao/${s.id}/promover`}
+            style={{ marginLeft: "auto", background: "#fff", color: "#1351b4", border: "2px solid #1351b4", borderRadius: 16, padding: "5px 14px", textDecoration: "none", fontWeight: 600, fontSize: ".85rem" }}
+          >
+            ↗ Promover para catálogo
+          </Link>
+        )}
       </div>
 
       {sp.ok && <Banner cor="ok">Curadoria salva.</Banner>}
