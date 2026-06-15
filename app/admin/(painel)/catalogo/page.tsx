@@ -37,6 +37,9 @@ export default async function AdminCatalogoPage({
         <span style={{ color: "#666" }}>
           {totais.total} resultado(s) · {totais.publicadas} publicada(s) · {totais.pendentes} pendente(s)
         </span>
+        <Link href="/admin/catalogo/novo" style={{ marginLeft: "auto", background: "#1351b4", color: "#fff", borderRadius: 16, padding: "7px 16px", textDecoration: "none", fontWeight: 600, fontSize: ".88rem" }}>
+          + Nova solução
+        </Link>
       </div>
 
       {sp.ok && <Banner cor="ok">{sp.ok === "promovida" ? "Submissão promovida ao catálogo." : "Alteração salva."}</Banner>}

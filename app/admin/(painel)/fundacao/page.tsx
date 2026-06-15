@@ -26,6 +26,9 @@ export default async function AdminFundacaoPage({
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Fundação</h1>
         <span style={{ color: "#666" }}>{rows.length} registro(s) · {publicados} publicado(s)</span>
+        <a href="/admin/fundacao/novo" style={{ marginLeft: "auto", background: "#1351b4", color: "#fff", borderRadius: 16, padding: "7px 16px", textDecoration: "none", fontWeight: 600, fontSize: ".88rem" }}>
+          + Novo repositório / API
+        </a>
       </div>
 
       {sp.ok && <Banner cor="ok">Alteração salva.</Banner>}

@@ -5,8 +5,20 @@ import { redirect } from "next/navigation";
 import { getAdmin } from "./auth-guard";
 import {
   codes, AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
-  SOBERANIA_CATALOGO,
+  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES,
 } from "./enums";
+
+// Helpers de parsing de formulário
+function lista(formData: FormData, campo: string): string[] {
+  return String(formData.get(campo) ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+function opcional(formData: FormData, campo: string, codigos: string[]): string | null {
+  const v = String(formData.get(campo) ?? "").trim();
+  return v && codigos.includes(v) ? v : null;
+}
 
 // Alterna publicado/revisado no catálogo. Via Server Action protegida (getAdmin);
 // a RLS catalogo_admin_update reforça a autorização no banco.
@@ -47,6 +59,87 @@ export async function alternarFundacaoPublicado(formData: FormData) {
   revalidatePath("/admin/fundacao");
   revalidatePath("/admin/indicadores");
   redirect("/admin/fundacao?ok=1");
+}
+
+// Cadastro manual de item da Fundação (repositório OU API/base de dados).
+export async function criarFundacao(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const tipo = String(formData.get("tipo") ?? "").trim();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const url = String(formData.get("url") ?? "").trim();
+  const base = "/admin/fundacao/novo";
+  if (tipo !== "repo" && tipo !== "fonte_dados") redirect(`${base}?erro=tipo`);
+  if (!nome || !url) redirect(`${base}?erro=obrig`);
+
+  const publicar = formData.get("publicar") === "on";
+  const { error } = await admin.supabase.from("fundacao").insert({
+    tipo,
+    nome,
+    url,
+    descricao: String(formData.get("descricao") ?? "").trim() || null,
+    orgao: String(formData.get("orgao") ?? "").trim() || null,
+    categoria: String(formData.get("categoria") ?? "").trim() || null,
+    licenca: String(formData.get("licenca") ?? "").trim() || null,
+    stack: String(formData.get("stack") ?? "").trim() || null,
+    tipo_dado: String(formData.get("tipo_dado") ?? "").trim() || null,
+    publicado: publicar,
+    verificado_em: new Date().toISOString(), // admin cadastrou conferindo o link
+    fonte: "cadastro manual",
+  });
+  if (error) redirect(`${base}?erro=salvar`);
+
+  revalidatePath("/admin/fundacao");
+  revalidatePath("/admin/indicadores");
+  redirect("/admin/fundacao?ok=1");
+}
+
+// Cadastro manual de solução no catálogo (solução/software de IA).
+export async function criarCatalogo(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  const orgao = String(formData.get("orgao") ?? "").trim();
+  const base = "/admin/catalogo/novo";
+  if (!titulo || !orgao) redirect(`${base}?erro=obrig`);
+
+  const modalidades = formData.getAll("modalidades").map(String)
+    .filter((m) => codes(MODALIDADES).includes(m));
+  const publicar = formData.get("publicar") === "on";
+
+  const { error } = await admin.supabase.from("catalogo_solucoes").insert({
+    titulo,
+    orgao,
+    descricao: String(formData.get("descricao") ?? "").trim() || null,
+    nivel_governo: opcional(formData, "nivel_governo", codes(NIVEL_GOVERNO)),
+    uf: opcional(formData, "uf", codes(UFS)),
+    area: opcional(formData, "area", codes(AREA)),
+    status: opcional(formData, "status", codes(STATUS_SOLUCAO)) ?? "em_revisao",
+    nivel_risco: opcional(formData, "nivel_risco", codes(NIVEL_RISCO)),
+    tipo_solucao: opcional(formData, "tipo_solucao", codes(TIPO_SOLUCAO)),
+    supervisao: opcional(formData, "supervisao", codes(SUPERVISAO)),
+    soberania: opcional(formData, "soberania", codes(SOBERANIA_CATALOGO)),
+    bloco: opcional(formData, "bloco", codes(BLOCO_ORIGEM)) ?? "gov",
+    frameworks: lista(formData, "frameworks"),
+    modalidades,
+    tags: lista(formData, "tags"),
+    licenca: String(formData.get("licenca") ?? "").trim() || null,
+    impacto: String(formData.get("impacto") ?? "").trim() || null,
+    link: String(formData.get("link") ?? "").trim() || null,
+    responsavel_nome: String(formData.get("responsavel_nome") ?? "").trim() || null,
+    responsavel_email: String(formData.get("responsavel_email") ?? "").trim() || null,
+    responsavel_cargo: String(formData.get("responsavel_cargo") ?? "").trim() || null,
+    revisado: true,         // cadastrado manualmente pelo admin = já curado
+    publicado: publicar,
+    fonte: "cadastro manual",
+  });
+  if (error) redirect(`${base}?erro=salvar`);
+
+  revalidatePath("/admin/catalogo");
+  revalidatePath("/admin/indicadores");
+  redirect("/admin/catalogo?ok=1");
 }
 
 // Promove uma submissão para o catálogo: COPIA (não move). A submissão original
