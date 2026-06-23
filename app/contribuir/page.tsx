@@ -16,6 +16,12 @@ export default function ContribuirPage() {
         <div
           style={{ background: "#eef3fb", border: "1px solid #c5d4ee", borderRadius: 6, padding: 16, marginBottom: 28 }}
         >
+          <p style={{ margin: "0 0 10px" }}>
+            Faça o cadastro se você tem <strong>interesse em compartilhar e trocar</strong> a sua
+            solução ou ideia com o ecossistema de IA do setor público — para <strong>reuso, parcerias
+            e aprendizado</strong> entre instituições. Não é uma vitrine para apenas divulgar algo
+            fechado.
+          </p>
           <p style={{ margin: 0 }}>
             Leva uns <strong>4 minutos</strong>. Vou te perguntar: o que é a sua solução, qual
             problema ela resolve, quem já usa, e os links. Tenha o link do

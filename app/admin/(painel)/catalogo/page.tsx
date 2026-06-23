@@ -96,6 +96,7 @@ export default async function AdminCatalogoPage({
                 </td>
                 <td style={td}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <Link href={`/admin/catalogo/${r.id}/editar`} style={{ ...btnSm, background: "#fff", color: "#1351b4", border: "1px solid #1351b4", textDecoration: "none" }}>Editar</Link>
                     <Toggle id={r.id} campo="publicado" valor={!r.publicado} rotulo={r.publicado ? "Despublicar" : "Publicar"} />
                     <Toggle id={r.id} campo="revisado" valor={!r.revisado} rotulo={r.revisado ? "Marcar pendente" : "Marcar revisado"} />
                   </div>

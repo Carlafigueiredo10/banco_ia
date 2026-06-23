@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { criarCatalogo } from "@/lib/actions-catalogo";
+import { notFound } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { editarCatalogo } from "@/lib/actions-catalogo";
 import CatalogoForm from "@/components/admin/CatalogoForm";
 
 export const dynamic = "force-dynamic";
@@ -9,22 +11,25 @@ const ERROS: Record<string, string> = {
   salvar: "Não foi possível salvar.",
 };
 
-export default async function NovaCatalogoPage({
+export default async function EditarCatalogoPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const { id } = await params;
   const sp = await searchParams;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("catalogo_solucoes").select("*").eq("id", id).maybeSingle();
+  if (!data) notFound();
+
   return (
     <>
       <Link href="/admin/catalogo" style={{ color: "#1351b4" }}>← Voltar ao Catálogo</Link>
-      <h1 style={{ fontSize: "1.5rem", margin: "8px 0 4px" }}>Nova solução no catálogo</h1>
-      <p style={{ color: "#666", marginTop: 0 }}>
-        Cadastre uma solução ou software de IA. Entra como <strong>revisado</strong> (cadastro manual);
-        escolha se publica já ou mantém privado.
-      </p>
+      <h1 style={{ fontSize: "1.5rem", margin: "8px 0 12px" }}>Editar: {data.titulo}</h1>
       {sp.erro && <Banner>{ERROS[sp.erro] ?? "Erro."}</Banner>}
-      <CatalogoForm action={criarCatalogo} modo="novo" />
+      <CatalogoForm action={editarCatalogo} defaults={data} modo="editar" />
     </>
   );
 }

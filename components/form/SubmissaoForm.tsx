@@ -281,7 +281,7 @@ export default function SubmissaoForm() {
 
         <section id="bloco-fim" aria-labelledby="h-fim">
           <h2 id="h-fim" style={{ fontSize: "1.3rem", margin: "24px 0 16px" }}>Fechamento</h2>
-          <TextAreaField id="links" label="Link(s): repositório, documentação ou demo" required rows={2} value={form.links} onChange={set("links")} error={erros.links} maxLength={LIMITES.links} />
+          <TextAreaField id="links" label="Link(s) da Solução" hint="Da própria solução: repositório, documentação, site ou demo (evite notícias)." required rows={2} value={form.links} onChange={set("links")} error={erros.links} maxLength={LIMITES.links} />
           <TextAreaField id="resultados" label="Tem algum número ou resultado pra contar?" hint="Economia, tempo, nº de atendimentos…" rows={2} value={form.resultados} onChange={set("resultados")} error={erros.resultados} maxLength={LIMITES.resultados} />
           <SelectField id="disposicao_aberto" label="Sua instituição está disposta a fornecer a solução (código, documentação, know-how) pra ser adaptada e escalada como código aberto?" required value={form.disposicao_aberto} onChange={set("disposicao_aberto")} options={DISPOSICAO_ABERTO} error={erros.disposicao_aberto} />
           <TextAreaField id="observacoes" label="Observações e sugestões" rows={2} value={form.observacoes} onChange={set("observacoes")} error={erros.observacoes} maxLength={LIMITES.observacoes} />

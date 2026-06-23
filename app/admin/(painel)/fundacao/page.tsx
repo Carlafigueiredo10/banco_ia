@@ -60,11 +60,14 @@ export default async function AdminFundacaoPage({
                 <td style={td}>{r.verificado_em ? "✓" : <span style={{ color: "#b3140e" }}>a verificar</span>}</td>
                 <td style={td}><Estado on={r.publicado} /></td>
                 <td style={td}>
-                  <form action={alternarFundacaoPublicado}>
-                    <input type="hidden" name="id" value={r.id} />
-                    <input type="hidden" name="valor" value={String(!r.publicado)} />
-                    <button type="submit" style={btnSm}>{r.publicado ? "Despublicar" : "Publicar"}</button>
-                  </form>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <a href={`/admin/fundacao/${r.id}/editar`} style={{ ...btnSm, background: "#fff", color: "#1351b4", border: "1px solid #1351b4", textDecoration: "none" }}>Editar</a>
+                    <form action={alternarFundacaoPublicado}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <input type="hidden" name="valor" value={String(!r.publicado)} />
+                      <button type="submit" style={btnSm}>{r.publicado ? "Despublicar" : "Publicar"}</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}

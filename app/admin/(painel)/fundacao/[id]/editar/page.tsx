@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { criarFundacao } from "@/lib/actions-catalogo";
+import { notFound } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { editarFundacao } from "@/lib/actions-catalogo";
 import FundacaoForm from "@/components/admin/FundacaoForm";
 
 export const dynamic = "force-dynamic";
@@ -10,21 +12,25 @@ const ERROS: Record<string, string> = {
   salvar: "Não foi possível salvar.",
 };
 
-export default async function NovaFundacaoPage({
+export default async function EditarFundacaoPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  const { id } = await params;
   const sp = await searchParams;
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("fundacao").select("*").eq("id", id).maybeSingle();
+  if (!data) notFound();
+
   return (
     <>
       <Link href="/admin/fundacao" style={{ color: "#1351b4" }}>← Voltar à Fundação</Link>
-      <h1 style={{ fontSize: "1.5rem", margin: "8px 0 4px" }}>Nova entrada na Fundação</h1>
-      <p style={{ color: "#666", marginTop: 0 }}>
-        Cadastre um <strong>repositório open-source</strong> ou uma <strong>API/base de dados</strong>.
-      </p>
+      <h1 style={{ fontSize: "1.5rem", margin: "8px 0 12px" }}>Editar: {data.nome}</h1>
       {sp.erro && <Banner>{ERROS[sp.erro] ?? "Erro."}</Banner>}
-      <FundacaoForm action={criarFundacao} modo="novo" />
+      <FundacaoForm action={editarFundacao} defaults={data} modo="editar" />
     </>
   );
 }

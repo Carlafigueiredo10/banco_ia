@@ -142,6 +142,76 @@ export async function criarCatalogo(formData: FormData) {
   redirect("/admin/catalogo?ok=1");
 }
 
+// Edição de item da Fundação (conteúdo; publicado é alternado pela lista).
+export async function editarFundacao(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  const base = `/admin/fundacao/${id}/editar`;
+  const tipo = String(formData.get("tipo") ?? "").trim();
+  const nome = String(formData.get("nome") ?? "").trim();
+  const url = String(formData.get("url") ?? "").trim();
+  if (tipo !== "repo" && tipo !== "fonte_dados") redirect(`${base}?erro=tipo`);
+  if (!nome || !url) redirect(`${base}?erro=obrig`);
+
+  const { error } = await admin.supabase.from("fundacao").update({
+    tipo, nome, url,
+    descricao: String(formData.get("descricao") ?? "").trim() || null,
+    orgao: String(formData.get("orgao") ?? "").trim() || null,
+    categoria: String(formData.get("categoria") ?? "").trim() || null,
+    licenca: String(formData.get("licenca") ?? "").trim() || null,
+    stack: String(formData.get("stack") ?? "").trim() || null,
+    tipo_dado: String(formData.get("tipo_dado") ?? "").trim() || null,
+  }).eq("id", id);
+  if (error) redirect(`${base}?erro=salvar`);
+
+  revalidatePath("/admin/fundacao");
+  redirect("/admin/fundacao?ok=1");
+}
+
+// Edição de solução do catálogo (conteúdo; publicado/revisado pela lista).
+export async function editarCatalogo(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  const base = `/admin/catalogo/${id}/editar`;
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  const orgao = String(formData.get("orgao") ?? "").trim();
+  if (!titulo || !orgao) redirect(`${base}?erro=obrig`);
+
+  const modalidades = formData.getAll("modalidades").map(String)
+    .filter((m) => codes(MODALIDADES).includes(m));
+
+  const { error } = await admin.supabase.from("catalogo_solucoes").update({
+    titulo, orgao,
+    descricao: String(formData.get("descricao") ?? "").trim() || null,
+    nivel_governo: opcional(formData, "nivel_governo", codes(NIVEL_GOVERNO)),
+    uf: opcional(formData, "uf", codes(UFS)),
+    area: opcional(formData, "area", codes(AREA)),
+    status: opcional(formData, "status", codes(STATUS_SOLUCAO)) ?? "em_revisao",
+    nivel_risco: opcional(formData, "nivel_risco", codes(NIVEL_RISCO)),
+    tipo_solucao: opcional(formData, "tipo_solucao", codes(TIPO_SOLUCAO)),
+    supervisao: opcional(formData, "supervisao", codes(SUPERVISAO)),
+    soberania: opcional(formData, "soberania", codes(SOBERANIA_CATALOGO)),
+    bloco: opcional(formData, "bloco", codes(BLOCO_ORIGEM)) ?? "gov",
+    frameworks: lista(formData, "frameworks"),
+    modalidades,
+    tags: lista(formData, "tags"),
+    licenca: String(formData.get("licenca") ?? "").trim() || null,
+    impacto: String(formData.get("impacto") ?? "").trim() || null,
+    link: String(formData.get("link") ?? "").trim() || null,
+    responsavel_nome: String(formData.get("responsavel_nome") ?? "").trim() || null,
+    responsavel_email: String(formData.get("responsavel_email") ?? "").trim() || null,
+    responsavel_cargo: String(formData.get("responsavel_cargo") ?? "").trim() || null,
+  }).eq("id", id);
+  if (error) redirect(`${base}?erro=salvar`);
+
+  revalidatePath("/admin/catalogo");
+  redirect("/admin/catalogo?ok=1");
+}
+
 // Promove uma submissão para o catálogo: COPIA (não move). A submissão original
 // permanece como evidência; a relação fica em catalogo_solucoes.origem_submissao_id.
 // Entra publicado=false e revisado=false (curadoria-first).
