@@ -30,6 +30,11 @@ export default async function AdminCatalogoPage({
     pendentes: rows.filter((r) => !r.revisado).length,
   };
 
+  const exp = new URLSearchParams();
+  if (sp.bloco) exp.set("bloco", sp.bloco);
+  if (sp.pendentes === "1") exp.set("pendentes", "1");
+  const exportHref = `/api/export-catalogo${exp.toString() ? `?${exp.toString()}` : ""}`;
+
   return (
     <>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
@@ -37,7 +42,10 @@ export default async function AdminCatalogoPage({
         <span style={{ color: "#666" }}>
           {totais.total} resultado(s) · {totais.publicadas} publicada(s) · {totais.pendentes} pendente(s)
         </span>
-        <Link href="/admin/catalogo/novo" style={{ marginLeft: "auto", background: "#1351b4", color: "#fff", borderRadius: 16, padding: "7px 16px", textDecoration: "none", fontWeight: 600, fontSize: ".88rem" }}>
+        <a href={exportHref} style={{ marginLeft: "auto", background: "#fff", color: "#1351b4", border: "1px solid #1351b4", borderRadius: 16, padding: "7px 16px", textDecoration: "none", fontWeight: 600, fontSize: ".88rem" }}>
+          ⬇ Exportar CSV {(sp.bloco || sp.pendentes) ? "(filtrado)" : "(tudo)"}
+        </a>
+        <Link href="/admin/catalogo/novo" style={{ background: "#1351b4", color: "#fff", borderRadius: 16, padding: "7px 16px", textDecoration: "none", fontWeight: 600, fontSize: ".88rem" }}>
           + Nova solução
         </Link>
       </div>
