@@ -97,8 +97,16 @@ export default async function IndicadoresPage() {
 
   return (
     <>
-      <h1 style={{ fontSize: "1.5rem", marginBottom: 4 }}>Indicadores</h1>
-      <p style={{ color: "#666", marginBottom: 20 }}>Painel interno da coordenação.</p>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+        <h1 style={{ fontSize: "1.5rem", marginBottom: 4 }}>Indicadores</h1>
+        <a href="/api/export-tudo" style={{ marginLeft: "auto", background: "#1351b4", color: "#fff", borderRadius: 16, padding: "8px 18px", textDecoration: "none", fontWeight: 600, fontSize: ".9rem" }}>
+          ⬇ Exportar banco completo (CSV)
+        </a>
+      </div>
+      <p style={{ color: "#666", marginBottom: 20 }}>
+        Painel interno da coordenação. O export reúne <strong>submissões + catálogo + fundação</strong> num
+        CSV único (coluna “Categoria”).
+      </p>
 
       {total === 0 && (
         <p style={{ background: "#fff4e5", border: "1px solid #f0c27b", borderRadius: 6, padding: 12 }}>
