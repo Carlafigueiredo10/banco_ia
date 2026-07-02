@@ -86,6 +86,29 @@ export const importacaoSchema = z
 
 export type ImportacaoInput = z.infer<typeof importacaoSchema>;
 
+// Inscrição de revisores (pipeline de validação por pares). Mesma postura de segurança
+// do formulário público: `.strict()`, honeypot, consentimento LGPD obrigatório.
+// indicacao/motivacao usam max inline (espelham o CHECK <=2000 da migration 12).
+export const revisorSchema = z
+  .object({
+    nome_completo: obrig("nome_completo"),
+    email: z.string().trim().email("E-mail inválido").max(LIMITES.email),
+    cargo: z.string().trim().max(LIMITES.cargo).optional().or(z.literal("")),
+    orgao: obrig("orgao"),
+    nivel_governo: enumOf(NIVEL_GOVERNO),
+    uf: enumOf(UFS),
+    area_atuacao: enumOf(AREA),
+    indicacao: z.string().trim().min(1, "Campo obrigatório").max(2000, "Máximo de 2000 caracteres"),
+    motivacao: z.string().trim().min(1, "Campo obrigatório").max(2000, "Máximo de 2000 caracteres"),
+    consentimento_lgpd: z.literal(true, {
+      message: "É necessário concordar com o aviso de privacidade",
+    }),
+    website: z.string().max(0).optional().or(z.literal("")), // honeypot
+  })
+  .strict();
+
+export type RevisorInput = z.infer<typeof revisorSchema>;
+
 // Normaliza strings vazias de campos opcionais para null (para o banco).
 export function vazioParaNull<T extends Record<string, unknown>>(obj: T) {
   const out: Record<string, unknown> = { ...obj };

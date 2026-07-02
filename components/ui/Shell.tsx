@@ -24,6 +24,7 @@ export function Footer() {
         <Link href="/fundacao" style={{ color: "#fff" }}>Fundação</Link>
         <Link href="/privacidade" style={{ color: "#fff" }}>Aviso de privacidade</Link>
         <Link href="/contribuir" style={{ color: "#fff" }}>Contribuir</Link>
+        <Link href="/revisores" style={{ color: "#fff" }}>Ser revisor(a)</Link>
         <a href="mailto:liia@enap.gov.br" style={{ color: "#fff" }}>liia@enap.gov.br</a>
         <span style={{ opacity: 0.7 }}>LIIA/ENAP · informações abertas · construído com o público</span>
       </div>

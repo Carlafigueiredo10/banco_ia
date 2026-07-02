@@ -156,7 +156,7 @@ export default function SubmissaoForm() {
 
         <section id="bloco-id" aria-labelledby="h-id">
           <h2 id="h-id" style={{ fontSize: "1.3rem", margin: "8px 0 16px" }}>Identificação e localização</h2>
-          <TextField id="email" label="E-mail" type="email" required value={form.email} onChange={set("email")} error={erros.email} maxLength={LIMITES.email} />
+          <TextField id="email" label="E-mail institucional" type="email" required value={form.email} onChange={set("email")} error={erros.email} maxLength={LIMITES.email} />
           <TextField id="nome_completo" label="Nome completo" required value={form.nome_completo} onChange={set("nome_completo")} error={erros.nome_completo} maxLength={LIMITES.nome_completo} />
           <TextField id="cargo" label="Cargo" value={form.cargo} onChange={set("cargo")} error={erros.cargo} maxLength={LIMITES.cargo} />
           <TextField id="telefone" label="WhatsApp / telefone (opcional)" type="tel" hint="Canal de contato alternativo ao e-mail — útil se o e-mail institucional demorar." value={form.telefone} onChange={set("telefone")} error={erros.telefone} maxLength={LIMITES.telefone} />

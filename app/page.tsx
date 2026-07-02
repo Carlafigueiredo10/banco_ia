@@ -83,6 +83,21 @@ export default async function Home() {
           </section>
         )}
 
+        <section aria-label="Contribuir com a validação" style={{ marginTop: 32, background: "#eef3fb", border: "1px solid #c5d4ee", borderRadius: 8, padding: "20px 24px", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}>
+          <div style={{ maxWidth: 620 }}>
+            <h2 style={{ fontSize: "1.15rem", color: "var(--bbsia-azul-escuro)", margin: "0 0 4px" }}>
+              Contribua com o pipeline de validação
+            </h2>
+            <p style={{ margin: 0, color: "#444", fontSize: ".95rem" }}>
+              Inscreva-se para ajudar na <strong>revisão por pares</strong> das soluções. Toda solução
+              submetida passa por testes e revisão. Neste momento, apenas técnicos do governo / pessoas indicadas.
+            </p>
+          </div>
+          <Link href="/revisores" style={{ display: "inline-block", background: "#fff", color: "var(--bbsia-azul)", border: "2px solid var(--bbsia-azul)", borderRadius: 24, padding: "12px 24px", fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+            Quero ser revisor(a)
+          </Link>
+        </section>
+
         <section aria-label="Como funciona" style={{ marginTop: 40, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
           {DIFERENCIAIS.map((x, i) => (
             <div key={i} style={{ border: "1px solid #d9e1ef", borderRadius: 8, padding: 18 }}>
