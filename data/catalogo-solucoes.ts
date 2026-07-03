@@ -248,9 +248,18 @@ const ORGAO_REAL_D: Record<string, string> = {
   "VLibras": "UFPB (LAViD) / Governo Digital",
   "Cortex (MJSP)": "MJSP — Seopi",
 };
+// Links oficiais verificados (só publicamos o que tem link que funciona).
+const LINK_REAL_D: Record<string, string> = {
+  "MapBiomas": "https://brasil.mapbiomas.org",
+  "Querido Diário": "https://github.com/okfn-brasil/querido-diario",
+  "Sinapses": "https://www.cnj.jus.br/sistemas/plataforma-sinapses/",
+  "VLibras": "https://www.gov.br/governodigital/pt-br/vlibras/",
+};
 for (const r of BLOCO_D) {
   const o = ORGAO_REAL_D[r.titulo];
   if (o) r.orgao = o;
+  const l = LINK_REAL_D[r.titulo];
+  if (l) r.link = l;
 }
 
 export const CATALOGO: CatalogoSeed[] = [...BLOCO_A, ...BLOCO_B, ...BLOCO_C, ...BLOCO_D];
