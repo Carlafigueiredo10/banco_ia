@@ -225,7 +225,8 @@ function sp(
     titulo: nome, orgao: "Software Público Brasileiro", nivel_governo: "federal", area,
     status: "ativo", nivel_risco: risco, tipo_solucao: tipo, frameworks: stack, modalidades, licenca,
     tags: [tagArea], supervisao: "monitoramento_passivo", soberania: "brasil_soberano",
-    impacto, link: "https://softwarepublico.gov.br", responsavel_cargo: "DPO — Órgão responsável", bloco: "software_publico",
+    impacto, responsavel_cargo: "DPO — Órgão responsável", bloco: "software_publico",
+    // sem link: o portal do Software Público é genérico (não aponta para a solução específica).
   };
 }
 const BLOCO_D: CatalogoSeed[] = [
