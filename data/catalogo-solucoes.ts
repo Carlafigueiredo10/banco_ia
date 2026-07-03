@@ -252,4 +252,19 @@ const BLOCO_D: CatalogoSeed[] = [
   sp("LibreSign (SPB)", ["PHP", "ML"], "administracao", "Administração/Processos", "limitado", "Assinatura digital livre com IA integrada", "GPL-3.0"),
 ];
 
+// Órgãos reais (curadoria): o portal do Software Público é genérico; cada solução
+// tem um autor específico. Corrige o placeholder "Software Público Brasileiro".
+const ORGAO_REAL_D: Record<string, string> = {
+  "MapBiomas": "MapBiomas / Observatório do Clima",
+  "Querido Diário": "Open Knowledge Brasil",
+  "Sinapses": "CNJ (desenvolvida pelo TJRO)",
+  "VLibras": "UFPB (LAViD) / Governo Digital",
+  "Cortex (MJSP)": "MJSP — Seopi",
+  "InVesalius": "CTI Renato Archer (MCTI)",
+};
+for (const r of BLOCO_D) {
+  const o = ORGAO_REAL_D[r.titulo];
+  if (o) r.orgao = o;
+}
+
 export const CATALOGO: CatalogoSeed[] = [...BLOCO_A, ...BLOCO_B, ...BLOCO_C, ...BLOCO_D];
