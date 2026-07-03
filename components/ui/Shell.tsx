@@ -21,7 +21,7 @@ export function Footer() {
     <footer style={{ marginTop: "auto", background: "#0c326f", color: "#dfe7f5" }}>
       <div style={{ maxWidth: 980, margin: "0 auto", padding: "20px", fontSize: ".85rem", display: "flex", gap: 16, flexWrap: "wrap" }}>
         <Link href="/catalogo" style={{ color: "#fff" }}>Catálogo</Link>
-        <Link href="/fundacao" style={{ color: "#fff" }}>Fundação</Link>
+        <Link href="/fundacao" style={{ color: "#fff" }}>Bases reutilizáveis</Link>
         <Link href="/privacidade" style={{ color: "#fff" }}>Aviso de privacidade</Link>
         <Link href="/contribuir" style={{ color: "#fff" }}>Contribuir</Link>
         <Link href="/revisores" style={{ color: "#fff" }}>Ser revisor(a)</Link>

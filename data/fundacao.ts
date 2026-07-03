@@ -8,7 +8,7 @@
 //   - BusCA: github.com/sgd/busca-ia retornou 404 → aponta p/ Governo Digital, verificado_em=null
 
 export type FundacaoSeed = {
-  tipo: "repo" | "fonte_dados";
+  tipo: "repo" | "fonte_dados" | "software";
   nome: string;
   descricao?: string;
   url: string;
@@ -164,4 +164,20 @@ export const FUNDACAO: FundacaoSeed[] = [
     ordem: 12,
     verificado_em: null,
   },
+
+  // ---- Softwares/sistemas públicos (ex-catálogo; não são IA, mas são base reutilizável) ----
+  // URLs/órgãos best-effort; verificado_em=null = a conferir na curadoria.
+  { tipo: "software", nome: "InVesalius", descricao: "Reconstrução 3D de imagens médicas (TC/RM) para planejamento cirúrgico.", url: "https://www.gov.br/cti/pt-br/acesso-a-informacao/acoes-e-programas/programas-acoes-obras-e-atividades/invesalius", orgao: "CTI Renato Archer (MCTI)", categoria: "Saúde", licenca: "GPL-3.0", stack: "Python / VTK", ordem: 20, verificado_em: null },
+  { tipo: "software", nome: "e-SUS", descricao: "Prontuário eletrônico da Atenção Primária do SUS.", url: "https://sisaps.saude.gov.br/esus/", orgao: "Ministério da Saúde (DATASUS)", categoria: "Saúde", licenca: "GPL-3.0", stack: "Java / PostgreSQL", ordem: 21, verificado_em: null },
+  { tipo: "software", nome: "SEI", descricao: "Sistema Eletrônico de Informações — gestão documental do governo.", url: "https://www.gov.br/gestao/pt-br/assuntos/processo-eletronico-nacional", orgao: "TRF4 / Governo Federal", categoria: "Gestão Documental", licenca: "GPL-3.0", stack: "PHP / MySQL", ordem: 22, verificado_em: null },
+  { tipo: "software", nome: "Fala.BR", descricao: "Plataforma de ouvidoria e acesso à informação.", url: "https://falabr.cgu.gov.br/", orgao: "CGU", categoria: "Ouvidoria", licenca: "GPL-3.0", stack: "Java / Python", ordem: 23, verificado_em: null },
+  { tipo: "software", nome: "Participa+", descricao: "Plataforma de participação social e consultas públicas.", url: "https://www.softwarepublico.gov.br", orgao: "Governo Federal", categoria: "Participação Social", licenca: "AGPL-3.0", stack: "Django / Python", ordem: 24, verificado_em: null },
+  { tipo: "software", nome: "CAR — Cadastro Ambiental Rural", descricao: "Cadastro ambiental rural com geoprocessamento (SICAR).", url: "https://www.car.gov.br/", orgao: "Serviço Florestal Brasileiro (MMA)", categoria: "Meio Ambiente", licenca: "GPL-3.0", stack: "Java / GIS", ordem: 25, verificado_em: null },
+  { tipo: "software", nome: "i-Educar", descricao: "Sistema de gestão escolar open-source.", url: "https://ieducar.com.br/", orgao: "Comunidade / Prefeitura de Itajaí", categoria: "Educação", licenca: "LGPL-2.1", stack: "PHP / Laravel", ordem: 26, verificado_em: null },
+  { tipo: "software", nome: "i3Geo", descricao: "Interface de geoprocessamento para internet.", url: "https://www.softwarepublico.gov.br", orgao: "Ministério do Meio Ambiente", categoria: "Meio Ambiente/Geo", licenca: "GPL-2.0", stack: "PHP / MapServer", ordem: 27, verificado_em: null },
+  { tipo: "software", nome: "Painel SUS", descricao: "Painel de indicadores de saúde do SUS.", url: "https://www.softwarepublico.gov.br", orgao: "Ministério da Saúde", categoria: "Saúde", licenca: "GPL-3.0", stack: "Python / R", ordem: 28, verificado_em: null },
+  { tipo: "software", nome: "DREX", descricao: "Real Digital — CBDC do Banco Central.", url: "https://www.bcb.gov.br/estabilidadefinanceira/drex", orgao: "Banco Central do Brasil", categoria: "Sistema Financeiro", licenca: "Proprietária", stack: "DLT / Hyperledger", ordem: 29, verificado_em: null },
+  { tipo: "software", nome: "PIX", descricao: "Sistema de pagamentos instantâneos do Banco Central.", url: "https://www.bcb.gov.br/estabilidadefinanceira/pix", orgao: "Banco Central do Brasil", categoria: "Sistema Financeiro", licenca: "Proprietária", stack: "Java / REST", ordem: 30, verificado_em: null },
+  { tipo: "software", nome: "Amadeus LMS", descricao: "Gestão de aprendizagem para educação a distância.", url: "https://www.softwarepublico.gov.br", orgao: "UFRPE", categoria: "Educação", licenca: "GPL-3.0", stack: "Java / Moodle", ordem: 31, verificado_em: null },
+  { tipo: "software", nome: "ASES", descricao: "Avaliação automatizada de acessibilidade web.", url: "https://asesweb.governoeletronico.gov.br/", orgao: "Governo Digital (MGI)", categoria: "Acessibilidade", licenca: "Apache-2.0", stack: "JavaScript", ordem: 32, verificado_em: null },
 ];

@@ -150,6 +150,7 @@ export const STATUS_MATURACAO: Opcao[] = [
 export const FUNDACAO_TIPO: Opcao[] = [
   { value: "repo", label: "Repositório open-source" },
   { value: "fonte_dados", label: "API / base de dados" },
+  { value: "software", label: "Software / sistema público" },
 ];
 
 // Catálogo (item 7) — ciclo de vida LIIA

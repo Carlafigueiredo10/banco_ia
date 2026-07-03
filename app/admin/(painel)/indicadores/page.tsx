@@ -41,6 +41,7 @@ export default async function IndicadoresPage() {
   const fund = (fundData ?? []) as Sub[];
   const fundRepos = fund.filter((r) => r.tipo === "repo").length;
   const fundFontes = fund.filter((r) => r.tipo === "fonte_dados").length;
+  const fundSoftware = fund.filter((r) => r.tipo === "software").length;
   const fundPublicados = fund.filter((r) => r.publicado).length;
 
   const porStatus = contar(rows, "status_maturacao", STATUS_MATURACAO);
@@ -214,12 +215,13 @@ export default async function IndicadoresPage() {
 
       {/* ===== Bloco 3: Fundação ===== */}
       <h2 style={{ ...tituloBloco, marginTop: 40 }}>
-        Fundação <span style={subBloco}>· repositórios e bases de referência (item 5)</span>
+        Bases reutilizáveis <span style={subBloco}>· repositórios, APIs e softwares públicos</span>
       </h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 8 }}>
-        <Card titulo="Total" valor={`${fund.length}`} sub="entidades de base" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px,1fr))", gap: 12, marginBottom: 8 }}>
+        <Card titulo="Total" valor={`${fund.length}`} sub="bases reutilizáveis" />
         <Card titulo="Repositórios" valor={`${fundRepos}`} sub="open-source" />
-        <Card titulo="Fontes de dados" valor={`${fundFontes}`} sub="APIs/datasets" />
+        <Card titulo="APIs / bases" valor={`${fundFontes}`} sub="datasets/serviços" />
+        <Card titulo="Softwares" valor={`${fundSoftware}`} sub="sistemas públicos" />
         <Card titulo="Publicados" valor={`${fundPublicados}`} sub="visíveis no público" />
         <Card titulo="Privados" valor={`${fund.length - fundPublicados}`} sub="em curadoria" />
       </div>

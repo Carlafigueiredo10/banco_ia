@@ -18,8 +18,8 @@ export default async function NovaFundacaoPage({
   const sp = await searchParams;
   return (
     <>
-      <Link href="/admin/fundacao" style={{ color: "#1351b4" }}>← Voltar à Fundação</Link>
-      <h1 style={{ fontSize: "1.5rem", margin: "8px 0 4px" }}>Nova entrada na Fundação</h1>
+      <Link href="/admin/fundacao" style={{ color: "#1351b4" }}>← Voltar às Bases</Link>
+      <h1 style={{ fontSize: "1.5rem", margin: "8px 0 4px" }}>Nova entrada nas Bases reutilizáveis</h1>
       <p style={{ color: "#666", marginTop: 0 }}>
         Cadastre um <strong>repositório open-source</strong> ou uma <strong>API/base de dados</strong>.
       </p>

@@ -23,7 +23,7 @@ export default async function PainelLayout({
           <nav style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <Link href="/admin" style={{ color: "#fff" }}>Submissões</Link>
             <Link href="/admin/catalogo" style={{ color: "#fff" }}>Catálogo</Link>
-            <Link href="/admin/fundacao" style={{ color: "#fff" }}>Fundação</Link>
+            <Link href="/admin/fundacao" style={{ color: "#fff" }}>Bases</Link>
             <Link href="/admin/revisores" style={{ color: "#fff" }}>Revisores</Link>
             <Link href="/admin/indicadores" style={{ color: "#fff" }}>Indicadores</Link>
             <Link href="/admin/admins" style={{ color: "#fff" }}>Admins</Link>

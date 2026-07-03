@@ -10,6 +10,7 @@ type Contadores = {
   em_curadoria: number;
   apis_bases: number;
   repositorios: number;
+  softwares: number;
 };
 
 const DIFERENCIAIS = [
@@ -80,6 +81,7 @@ export default async function Home() {
             <Numero valor={c.em_curadoria} rotulo="Em curadoria" />
             <Numero valor={c.apis_bases} rotulo="APIs e bases públicas" href="/fundacao" />
             <Numero valor={c.repositorios} rotulo="Repositórios de referência" href="/fundacao" />
+            <Numero valor={c.softwares} rotulo="Softwares públicos" href="/fundacao" />
           </section>
         )}
 

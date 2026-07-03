@@ -229,27 +229,14 @@ function sp(
     // sem link: o portal do Software Público é genérico (não aponta para a solução específica).
   };
 }
+// Só os de IA (7.1.D). Os softwares públicos NÃO-IA foram para a Fundação (tipo 'software',
+// ver data/fundacao.ts). Brasil API e LibreSign também vivem só na Fundação (repo/API).
 const BLOCO_D: CatalogoSeed[] = [
-  sp("Brasil API", ["Node.js", "REST"], "outro", "Dados Abertos", "limitado", "Hub de APIs abertas de dados públicos brasileiros", "MIT", "ferramenta", ["texto", "tabular"]),
   sp("Querido Diário", ["Python", "NLP"], "gestao_publica", "Transparência", "limitado", "Análise de diários oficiais municipais via NLP", "MIT", "modelo"),
   sp("MapBiomas", ["Google Earth Engine", "ML"], "meio_ambiente", "Meio Ambiente", "limitado", "Mapeamento anual da terra com Machine Learning", "CC-BY-4.0"),
-  sp("InVesalius", ["Python", "VTK"], "saude", "Saúde", "alto", "Diagnóstico médico com visão computacional (3D)", "GPL-3.0"),
-  sp("e-SUS", ["Java", "PostgreSQL"], "saude", "Saúde", "alto", "Prontuário eletrônico do SUS com análise de dados", "GPL-3.0"),
   sp("VLibras", ["Python", "ML"], "outro", "Acessibilidade", "limitado", "Tradução automática de conteúdos para LIBRAS", "LGPL-3.0"),
-  sp("Cortex (MJSP)", ["Python", "ML"], "seguranca", "Segurança Pública", "alto", "Plataforma de monitoramento e inteligência do MJSP", "Proprietária"),
-  sp("SEI", ["PHP", "MySQL"], "administracao", "Gestão Documental", "limitado", "Sistema Eletrônico de Informações do Gov. Federal", "GPL-3.0"),
-  sp("Fala.BR", ["Java", "Python"], "gestao_publica", "Ouvidoria", "limitado", "Plataforma de ouvidoria e acesso à informação", "GPL-3.0"),
-  sp("Participa+", ["Django", "Python"], "gestao_publica", "Participação Social", "limitado", "Plataforma de participação social e consultas públicas", "AGPL-3.0"),
-  sp("CAR — Cadastro Ambiental Rural", ["Java", "GIS"], "meio_ambiente", "Meio Ambiente", "limitado", "Cadastro ambiental rural com geoprocessamento", "GPL-3.0"),
-  sp("i-Educar", ["PHP", "Laravel"], "educacao", "Educação", "limitado", "Sistema de gestão escolar open-source", "LGPL-2.1"),
-  sp("i3Geo", ["PHP", "MapServer"], "meio_ambiente", "Meio Ambiente/Geo", "limitado", "Interface de geoprocessamento para internet", "GPL-2.0"),
   sp("Sinapses", ["Python", "ML"], "gestao_publica", "Governança IA", "limitado", "Plataforma de IA e análise de dados governamental", "Proprietária"),
-  sp("Painel SUS", ["Python", "R"], "saude", "Saúde", "alto", "Painel de indicadores de saúde do SUS", "GPL-3.0"),
-  sp("DREX", ["DLT", "Hyperledger"], "fazenda", "Sistema Financeiro", "limitado", "Real Digital — CBDC do Banco Central", "Proprietária"),
-  sp("PIX", ["Java", "REST"], "fazenda", "Sistema Financeiro", "limitado", "Sistema de pagamentos instantâneos do Banco Central", "Proprietária"),
-  sp("Amadeus LMS", ["Java", "Moodle"], "educacao", "Educação", "limitado", "Gestão de aprendizagem para educação a distância", "GPL-3.0"),
-  sp("ASES", ["JavaScript"], "outro", "Acessibilidade", "limitado", "Avaliação automatizada de acessibilidade web", "Apache-2.0"),
-  sp("LibreSign (SPB)", ["PHP", "ML"], "administracao", "Administração/Processos", "limitado", "Assinatura digital livre com IA integrada", "GPL-3.0"),
+  sp("Cortex (MJSP)", ["Python", "ML"], "seguranca", "Segurança Pública", "alto", "Plataforma de monitoramento e inteligência do MJSP", "Proprietária"),
 ];
 
 // Órgãos reais (curadoria): o portal do Software Público é genérico; cada solução
@@ -260,7 +247,6 @@ const ORGAO_REAL_D: Record<string, string> = {
   "Sinapses": "CNJ (desenvolvida pelo TJRO)",
   "VLibras": "UFPB (LAViD) / Governo Digital",
   "Cortex (MJSP)": "MJSP — Seopi",
-  "InVesalius": "CTI Renato Archer (MCTI)",
 };
 for (const r of BLOCO_D) {
   const o = ORGAO_REAL_D[r.titulo];

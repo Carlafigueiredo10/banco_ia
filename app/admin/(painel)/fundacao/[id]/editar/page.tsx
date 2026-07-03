@@ -27,7 +27,7 @@ export default async function EditarFundacaoPage({
 
   return (
     <>
-      <Link href="/admin/fundacao" style={{ color: "#1351b4" }}>← Voltar à Fundação</Link>
+      <Link href="/admin/fundacao" style={{ color: "#1351b4" }}>← Voltar às Bases</Link>
       <h1 style={{ fontSize: "1.5rem", margin: "8px 0 12px" }}>Editar: {data.nome}</h1>
       {sp.erro && <Banner>{ERROS[sp.erro] ?? "Erro."}</Banner>}
       <FundacaoForm action={editarFundacao} defaults={data} modo="editar" />

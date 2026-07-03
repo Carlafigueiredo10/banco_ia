@@ -29,7 +29,7 @@ export default function FundacaoForm({
       </div>
 
       <fieldset style={fs}>
-        <legend style={leg}>Se for repositório</legend>
+        <legend style={leg}>Se for repositório ou software/sistema</legend>
         <div style={grid}>
           <T nome="licenca" rotulo="Licença (SPDX)" def={d.licenca} placeholder="MIT, GPL-3.0…" />
           <T nome="stack" rotulo="Stack / linguagem" def={d.stack} placeholder="Python / FastAPI" />
