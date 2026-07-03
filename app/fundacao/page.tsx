@@ -1,13 +1,24 @@
+import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 
 export const dynamic = "force-dynamic";
 
 type Row = Record<string, string | number | null>;
+type Tipo = "repo" | "fonte_dados" | "software";
 
 const EMPTY = "Catálogo em curadoria. Os dados públicos serão disponibilizados após validação.";
+const TIPOS_VALIDOS: Tipo[] = ["repo", "fonte_dados", "software"];
 
-export default async function FundacaoPage() {
+export default async function FundacaoPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const selRaw = typeof params.tipo === "string" ? params.tipo : "";
+  const sel = (TIPOS_VALIDOS as string[]).includes(selRaw) ? (selRaw as Tipo) : null;
+
   // Cliente anon puro: a RLS só devolve publicado=true; sem PII envolvida aqui.
   const supabase = createSupabaseAnonClient();
   const { data } = await supabase
@@ -20,12 +31,19 @@ export default async function FundacaoPage() {
   const fontes = rows.filter((r) => r.tipo === "fonte_dados");
   const softwares = rows.filter((r) => r.tipo === "software");
 
+  const abas = [
+    { tipo: null as Tipo | null, rotulo: "Todas", n: rows.length },
+    { tipo: "repo" as Tipo, rotulo: "Repositórios", n: repos.length },
+    { tipo: "fonte_dados" as Tipo, rotulo: "APIs e bases", n: fontes.length },
+    { tipo: "software" as Tipo, rotulo: "Softwares públicos", n: softwares.length },
+  ];
+
   return (
     <>
       <Header />
       <Main>
         <h1 style={{ fontSize: "1.8rem", marginBottom: 8 }}>Bases reutilizáveis</h1>
-        <p style={{ color: "#444", maxWidth: 720, marginBottom: 28 }}>
+        <p style={{ color: "#444", maxWidth: 720, marginBottom: 20 }}>
           Repositórios, APIs e softwares públicos que servem de alicerce para soluções de IA na
           gestão pública brasileira.
         </p>
@@ -34,9 +52,29 @@ export default async function FundacaoPage() {
           <Vazio />
         ) : (
           <>
-            <Secao titulo="Repositórios open-source" itens={repos} tipo="repo" />
-            <Secao titulo="APIs e bases de dados" itens={fontes} tipo="fonte_dados" />
-            <Secao titulo="Softwares públicos" itens={softwares} tipo="software" />
+            <nav aria-label="Filtrar por tipo" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
+              {abas.map((a) => {
+                const ativa = a.tipo === sel;
+                return (
+                  <Link
+                    key={a.rotulo}
+                    href={a.tipo ? `/fundacao?tipo=${a.tipo}` : "/fundacao"}
+                    style={{
+                      borderRadius: 18, padding: "6px 14px", textDecoration: "none", fontSize: ".9rem", fontWeight: 600,
+                      border: `1px solid ${ativa ? "var(--bbsia-azul)" : "#c5d4ee"}`,
+                      background: ativa ? "var(--bbsia-azul)" : "#fff",
+                      color: ativa ? "#fff" : "var(--bbsia-azul)",
+                    }}
+                  >
+                    {a.rotulo} <span style={{ opacity: 0.7 }}>({a.n})</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {(!sel || sel === "repo") && <Secao titulo="Repositórios open-source" itens={repos} tipo="repo" />}
+            {(!sel || sel === "fonte_dados") && <Secao titulo="APIs e bases de dados" itens={fontes} tipo="fonte_dados" />}
+            {(!sel || sel === "software") && <Secao titulo="Softwares públicos" itens={softwares} tipo="software" />}
           </>
         )}
       </Main>
