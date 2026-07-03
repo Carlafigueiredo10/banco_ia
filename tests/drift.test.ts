@@ -39,6 +39,17 @@ function valoresSql13(col: string): string[] {
   if (!m) throw new Error(`CHECK não encontrado para ${col} em 13_*`);
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
+// Migration 16 recriou o CHECK de catalogo_solucoes.bloco com +'internacional'.
+const schema16 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/16_bloco_internacional_dpg.sql"),
+  "utf8"
+);
+function valoresSql16(col: string): string[] {
+  const re = new RegExp(`${col} in \\(([^)]*)\\)`);
+  const m = schema16.match(re);
+  if (!m) throw new Error(`CHECK não encontrado para ${col} em 16_*`);
+  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+}
 // modalidades é validada por elemento: `modalidades <@ array['a','b',...]::text[]`
 function valoresSqlArray11(col: string): string[] {
   const re = new RegExp(`${col} <@ array\\[([^\\]]*)\\]`);
@@ -94,7 +105,6 @@ describe("anti-drift: enums das vitrines (item 5/7) TS ↔ CHECK do SQL (migrati
     ["tipo_solucao", TIPO_SOLUCAO],
     ["supervisao", SUPERVISAO],
     ["soberania", SOBERANIA_CATALOGO], // valores do catálogo, não os do formulário
-    ["bloco", BLOCO_ORIGEM],
   ];
   for (const [col, opcoes] of casos) {
     it(`${col}: códigos batem`, () => {
@@ -106,6 +116,9 @@ describe("anti-drift: enums das vitrines (item 5/7) TS ↔ CHECK do SQL (migrati
   });
   it("fundacao.tipo: códigos batem (migration 13, com 'software')", () => {
     expect(new Set(codes(FUNDACAO_TIPO))).toEqual(new Set(valoresSql13("tipo")));
+  });
+  it("catalogo.bloco: códigos batem (migration 16, com 'internacional')", () => {
+    expect(new Set(codes(BLOCO_ORIGEM))).toEqual(new Set(valoresSql16("bloco")));
   });
 });
 

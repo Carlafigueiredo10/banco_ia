@@ -18,7 +18,7 @@ export type CatalogoSeed = {
   tipo_solucao?: "modelo" | "dataset" | "pipeline" | "agente" | "ferramenta";
   supervisao?: "monitoramento_passivo" | "revisao_amostral" | "revisao_obrigatoria";
   soberania?: "brasil_soberano" | "brasil_comercial" | "externo" | "nao_se_aplica";
-  bloco: "gov" | "mgi" | "formulario" | "software_publico";
+  bloco: "gov" | "mgi" | "formulario" | "software_publico" | "internacional";
   frameworks?: string[];
   modalidades?: ("texto" | "imagem" | "audio" | "tabular")[];
   tags?: string[];
@@ -262,4 +262,17 @@ for (const r of BLOCO_D) {
   if (l) r.link = l;
 }
 
-export const CATALOGO: CatalogoSeed[] = [...BLOCO_A, ...BLOCO_B, ...BLOCO_C, ...BLOCO_D];
+// ===== Internacional — referências de IA de fora (DPG Registry), curadoria-first =====
+// Estrangeiras: soberania 'externo', em inglês. Menor risco, link verificado.
+const BLOCO_INTERNACIONAL: CatalogoSeed[] = [
+  { titulo: "AI Agro", descricao: "Agricultura de precisão com drones/UAV: avalia a saúde de culturas via machine learning e visão computacional. Referência internacional (em inglês).", orgao: "RentadroneCL (Chile)", area: "meio_ambiente", status: "ativo", nivel_risco: "minimo", tipo_solucao: "ferramenta", soberania: "externo", frameworks: ["Computer Vision", "ML"], modalidades: ["imagem"], tags: ["Internacional", "DPG", "Chile"], licenca: "GPL-3.0", link: "https://github.com/RentadroneCL/Precision_Agriculture", bloco: "internacional" },
+  { titulo: "Dymaxion Labs Toolkit", descricao: "Análise de dados geoespaciais em larga escala com visão computacional e segmentação semântica (U-Net). Referência internacional (em inglês).", orgao: "Dymaxion Labs (Argentina)", area: "meio_ambiente", status: "ativo", nivel_risco: "minimo", tipo_solucao: "pipeline", soberania: "externo", frameworks: ["U-Net", "Computer Vision"], modalidades: ["imagem"], tags: ["Internacional", "DPG", "Argentina"], licenca: "Apache-2.0", link: "https://github.com/dymaxionlabs/satproc", bloco: "internacional" },
+  { titulo: "Zamba", descricao: "Identifica espécies em vídeos de armadilhas fotográficas usando deep learning. Referência internacional (em inglês).", orgao: "DrivenData (EUA)", area: "meio_ambiente", status: "ativo", nivel_risco: "minimo", tipo_solucao: "modelo", soberania: "externo", frameworks: ["Deep Learning"], modalidades: ["imagem"], tags: ["Internacional", "DPG", "EUA"], licenca: "MIT", link: "https://github.com/drivendataorg/zamba", bloco: "internacional" },
+  { titulo: "Koster Seafloor Observatory", descricao: "Análise automática de vídeos submarinos (espécies e habitats) com ML de visão, treinado por ciência cidadã. Referência internacional (em inglês).", orgao: "Ocean Data Factory (Suécia)", area: "meio_ambiente", status: "ativo", nivel_risco: "minimo", tipo_solucao: "modelo", soberania: "externo", frameworks: ["Computer Vision", "ML"], modalidades: ["imagem"], tags: ["Internacional", "DPG", "Suécia"], licenca: "GPL-3.0", link: "https://github.com/ocean-data-factory-sweden/koster_ml", bloco: "internacional" },
+  { titulo: "OTTAA Project", descricao: "Comunicação alternativa e aumentativa preditiva (IA) para pessoas com deficiência de fala. Referência internacional (em inglês).", orgao: "OTTAA Project (Argentina)", area: "saude", status: "ativo", nivel_risco: "limitado", tipo_solucao: "ferramenta", soberania: "externo", frameworks: ["NLP", "Predição"], modalidades: ["texto"], tags: ["Internacional", "DPG", "Argentina", "Acessibilidade"], licenca: "GPL-3.0", link: "https://github.com/OTTAA-Project/ottaa_project_flutter", bloco: "internacional" },
+  { titulo: "Kindly", descricao: "API que detecta intenção de bullying/abuso em mensagens de texto (NLP). Referência internacional (em inglês).", orgao: "UNICEF", area: "educacao", status: "ativo", nivel_risco: "limitado", tipo_solucao: "ferramenta", soberania: "externo", frameworks: ["NLP"], modalidades: ["texto"], tags: ["Internacional", "DPG", "UNICEF"], licenca: "AGPL-3.0", link: "https://github.com/unicef/kindly", bloco: "internacional" },
+  { titulo: "iVerify", descricao: "Plataforma de combate à desinformação e discurso de ódio (NLP). Referência internacional (em inglês).", orgao: "UNDP", area: "gestao_publica", status: "ativo", nivel_risco: "limitado", tipo_solucao: "ferramenta", soberania: "externo", frameworks: ["NLP"], modalidades: ["texto"], tags: ["Internacional", "DPG", "UNDP"], licenca: "AGPL-3.0", link: "https://github.com/undp/iVerify-Apps", bloco: "internacional" },
+  { titulo: "I-Stem", descricao: "Converte documentos inacessíveis em formatos acessíveis com IA (OCR/NLP). Referência internacional (em inglês).", orgao: "I-Stem (Índia)", area: "administracao", status: "ativo", nivel_risco: "minimo", tipo_solucao: "ferramenta", soberania: "externo", frameworks: ["OCR", "NLP"], modalidades: ["imagem", "texto"], tags: ["Internacional", "DPG", "Índia", "Acessibilidade"], licenca: "AGPL-3.0", link: "https://github.com/i-stem/science", bloco: "internacional" },
+];
+
+export const CATALOGO: CatalogoSeed[] = [...BLOCO_A, ...BLOCO_B, ...BLOCO_C, ...BLOCO_D, ...BLOCO_INTERNACIONAL];

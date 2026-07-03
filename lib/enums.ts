@@ -200,6 +200,7 @@ export const BLOCO_ORIGEM: Opcao[] = [
   { value: "mgi", label: "Mapeada MGI (7.1.B)" },
   { value: "formulario", label: "Auto-declarada (7.1.C)" },
   { value: "software_publico", label: "Software Público (7.1.D)" },
+  { value: "internacional", label: "Internacional / DPG" },
 ];
 
 // Catálogo — modalidades (coleção; validada por elemento via `<@ array[...]` no SQL)
