@@ -8,9 +8,7 @@ type Contadores = {
   solucoes_mapeadas: number;
   publicadas: number;
   em_curadoria: number;
-  apis_bases: number;
-  repositorios: number;
-  softwares: number;
+  bases_reutilizaveis: number;
 };
 
 const DIFERENCIAIS = [
@@ -79,9 +77,7 @@ export default async function Home() {
             <Numero valor={c.solucoes_mapeadas} rotulo="Soluções mapeadas" href="/catalogo" />
             <Numero valor={c.publicadas} rotulo="Soluções publicadas" href="/catalogo" />
             <Numero valor={c.em_curadoria} rotulo="Em curadoria" />
-            <Numero valor={c.apis_bases} rotulo="APIs e bases públicas" href="/fundacao" />
-            <Numero valor={c.repositorios} rotulo="Repositórios de referência" href="/fundacao" />
-            <Numero valor={c.softwares} rotulo="Softwares públicos" href="/fundacao" />
+            <Numero valor={c.bases_reutilizaveis} rotulo="Bases reutilizáveis" href="/fundacao" />
           </section>
         )}
 
