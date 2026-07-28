@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { promoverSubmissao } from "@/lib/actions-catalogo";
+import ModelCardCampos from "@/components/admin/ModelCardCampos";
 import {
   AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, type Opcao,
@@ -42,7 +43,9 @@ export default async function PromoverPage({
       <h1 style={{ fontSize: "1.5rem", margin: "8px 0 4px" }}>Promover para o catálogo</h1>
       <p style={{ color: "#666", marginTop: 0 }}>
         Cria uma <strong>cópia curada</strong> no catálogo (privada, a revisar). A submissão original
-        permanece como evidência. Campos LIIA que o formulário não tem ficam para você preencher.
+        permanece como evidência. Esta é a <strong>ficha de revisão</strong>: além dos essenciais,
+        preencha o <strong>Model Card / Conformidade</strong> abaixo (tudo opcional — o que faltar pode
+        ser completado depois no catálogo).
       </p>
 
       {sp.erro && <Banner>{ERROS[sp.erro] ?? "Erro."}</Banner>}
@@ -73,6 +76,8 @@ export default async function PromoverPage({
 
           <Texto nome="link" rotulo="Link" defaultValue={primeiroLink(s.links)} />
           <Area nome="impacto" rotulo="Impacto / resultado" defaultValue={s.resultados ?? ""} />
+
+          <ModelCardCampos />
 
           <button type="submit" style={btn}>Promover para o catálogo (privado)</button>
         </form>

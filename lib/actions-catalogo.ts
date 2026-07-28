@@ -304,6 +304,7 @@ export async function promoverSubmissao(formData: FormData) {
     bloco: "formulario",
     link: String(formData.get("link") ?? "").trim() || null,
     impacto: String(formData.get("impacto") ?? "").trim() || null,
+    ...camposModelCard(formData),
     revisado: false,
     publicado: false,
     origem_submissao_id: submissaoId,
