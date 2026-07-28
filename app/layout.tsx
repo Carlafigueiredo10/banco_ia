@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "@govbr-ds/core/dist/core.min.css";
 import "./globals.css";
 
@@ -27,6 +28,9 @@ export default function RootLayout({
           Ir para o conteúdo
         </a>
         {children}
+        {/* Vercel Web Analytics — contagem agregada de visitas/pageviews, sem cookie
+            e sem dado pessoal (coerente com a LGPD e com /privacidade). */}
+        <Analytics />
       </body>
     </html>
   );
