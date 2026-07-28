@@ -11,6 +11,13 @@ type Tipo = "repo" | "fonte_dados" | "software";
 
 const EMPTY = "Catálogo em curadoria. Os dados públicos serão disponibilizados após validação.";
 const TIPOS_VALIDOS: Tipo[] = ["repo", "fonte_dados", "software"];
+// Rótulo humano dos 3 tipos (vocabulário controlado por CHECK no banco). Bases novas não
+// dependem disto — só um tipo NOVO exigiria mexer aqui.
+const TIPO_LABEL: Record<Tipo, string> = {
+  repo: "Repositório open-source",
+  fonte_dados: "API / base de dados",
+  software: "Software público",
+};
 
 export default async function FundacaoPage({
   searchParams,
@@ -94,6 +101,8 @@ function Vazio() {
   );
 }
 
+// Card harmonizado com o do catálogo: título linka para a ficha; "Acessar ↗" mede clique_base.
+// 100% data-driven — renderiza o que estiver na tabela `fundacao` (nada hardcoded por base).
 function Secao({ titulo, itens, tipo }: { titulo: string; itens: Row[]; tipo: "repo" | "fonte_dados" | "software" }) {
   if (itens.length === 0) return null;
   return (
@@ -101,22 +110,30 @@ function Secao({ titulo, itens, tipo }: { titulo: string; itens: Row[]; tipo: "r
       <h2 style={{ fontSize: "1.2rem", color: "var(--bbsia-azul-escuro)", marginBottom: 14 }}>{titulo}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {itens.map((r) => (
-          <LinkExterno
-            key={r.id as string}
-            href={(r.url as string) ?? "#"}
-            evento="clique_base"
-            chave={r.id as string}
-            style={{ border: "1px solid #d9e1ef", borderRadius: 8, padding: 16, textDecoration: "none", color: "inherit", display: "block" }}
-          >
-            <div style={{ fontWeight: 700, color: "var(--bbsia-azul)", marginBottom: 4 }}>{r.nome}</div>
-            {r.orgao && <div style={{ fontSize: ".8rem", color: "#777", marginBottom: 6 }}>{r.orgao}</div>}
-            {r.descricao && <p style={{ margin: "0 0 10px", fontSize: ".9rem", color: "#444" }}>{r.descricao}</p>}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <article key={r.id as string} style={{ border: "1px solid #d9e1ef", borderRadius: 8, padding: 16, display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: ".68rem", fontWeight: 700, letterSpacing: ".04em", color: "#888", textTransform: "uppercase", marginBottom: 6 }}>
+              {r.categoria ? (r.categoria as string) : TIPO_LABEL[tipo]}
+            </div>
+            <Link href={`/fundacao/${r.id as string}`} style={{ fontWeight: 700, color: "var(--bbsia-azul)", fontSize: "1.05rem", textDecoration: "none", marginBottom: 2, lineHeight: 1.2 }}>
+              {r.nome}
+            </Link>
+            {r.orgao && <div style={{ fontSize: ".8rem", color: "#777", marginBottom: 8 }}>{r.orgao}</div>}
+            {r.descricao && <p style={{ margin: "0 0 10px", fontSize: ".9rem", color: "#444", lineHeight: 1.45 }}>{truncar(r.descricao as string, 150)}</p>}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
               {(tipo === "repo" || tipo === "software") && r.licenca && <Chip>{r.licenca as string}</Chip>}
               {(tipo === "repo" || tipo === "software") && r.stack && <Chip>{r.stack as string}</Chip>}
               {tipo === "fonte_dados" && r.tipo_dado && <Chip>{r.tipo_dado as string}</Chip>}
             </div>
-          </LinkExterno>
+            <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, borderTop: "1px solid #eef1f7", paddingTop: 10, fontSize: ".82rem" }}>
+              <Link href={`/fundacao/${r.id as string}`} style={{ color: "var(--bbsia-azul)", fontWeight: 600 }}>Ver ficha →</Link>
+              {r.url && (
+                <LinkExterno href={r.url as string} evento="clique_base" chave={r.id as string}
+                  style={{ color: "var(--bbsia-azul)", fontWeight: 600 }}>
+                  Acessar ↗
+                </LinkExterno>
+              )}
+            </div>
+          </article>
         ))}
       </div>
     </section>
@@ -125,8 +142,11 @@ function Secao({ titulo, itens, tipo }: { titulo: string; itens: Row[]; tipo: "r
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span style={{ background: "#eef3fb", color: "#0c326f", borderRadius: 12, padding: "2px 10px", fontSize: ".75rem" }}>
+    <span style={{ background: "#eef3fb", color: "#0c326f", borderRadius: 12, padding: "2px 10px", fontSize: ".75rem", fontWeight: 600 }}>
       {children}
     </span>
   );
+}
+function truncar(t: string, n: number): string {
+  return t.length > n ? `${t.slice(0, n).trimEnd()}…` : t;
 }
