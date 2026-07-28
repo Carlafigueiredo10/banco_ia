@@ -3,12 +3,16 @@ import { z } from "zod";
 // Monitoramento de visitas — contrato compartilhado entre o cliente e /api/metrica.
 // Só três eventos, e nada além de (evento, chave). Nenhum campo de identificação.
 
-export const EVENTOS = ["pagina", "clique_solucao", "clique_base"] as const;
+// 'interesse' é a curtida / "Tenho interesse" do card do catálogo (chave = uuid da solução).
+// Sinal de demanda, não nota de qualidade. Reusa todo o caminho de métrica agregada.
+export const EVENTOS = ["pagina", "clique_solucao", "clique_base", "interesse"] as const;
 export type Evento = (typeof EVENTOS)[number];
 
 // Allowlist de rotas medidas. Página nova só entra aqui de propósito — evita que
 // querystring, hash ou rota inventada virem linha na tabela.
-export const ROTAS_MEDIDAS = ["/", "/catalogo", "/fundacao"] as const;
+// "/catalogo/detalhe" é rótulo ESTÁVEL da ficha (/catalogo/[id]) — agregamos todas as fichas
+// numa linha só, sem explodir a cardinalidade por uuid.
+export const ROTAS_MEDIDAS = ["/", "/catalogo", "/catalogo/detalhe", "/fundacao"] as const;
 export type RotaMedida = (typeof ROTAS_MEDIDAS)[number];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -56,4 +60,24 @@ export function enviarMetrica(evento: Evento, chave: string): void {
     body: corpo,
     keepalive: true,
   }).catch(() => {});
+}
+
+// Variante interativa (botões com feedback ao usuário): aguarda a resposta (a API responde 204
+// em QUALQUER desfecho) e distingue apenas falha de REDE — nunca vaza estado do servidor.
+// Em localhost finge sucesso e NÃO chama a API (não infla o contador de produção).
+export async function enviarMetricaAguardando(evento: Evento, chave: string): Promise<boolean> {
+  if (typeof navigator === "undefined" || typeof location === "undefined") return false;
+  const h = location.hostname;
+  if (h === "localhost" || h === "127.0.0.1" || h === "[::1]" || h.endsWith(".local")) return true;
+  try {
+    await fetch("/api/metrica", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ evento, chave }),
+      keepalive: true,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

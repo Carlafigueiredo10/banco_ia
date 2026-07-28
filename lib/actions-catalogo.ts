@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getAdmin } from "./auth-guard";
 import {
   codes, AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
-  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES,
+  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, HOSPEDAGEM_INFERENCIA, TRANSFERENCIA_INTERNACIONAL,
 } from "./enums";
 
 // Helpers de parsing de formulário
@@ -18,6 +18,58 @@ function lista(formData: FormData, campo: string): string[] {
 function opcional(formData: FormData, campo: string, codigos: string[]): string | null {
   const v = String(formData.get(campo) ?? "").trim();
   return v && codigos.includes(v) ? v : null;
+}
+// Texto opcional: trim; vazio → null; corta no limite (o CHECK do banco é a fronteira final).
+function txt(formData: FormData, campo: string, max?: number): string | null {
+  const v = String(formData.get(campo) ?? "").trim();
+  if (!v) return null;
+  return max ? v.slice(0, max) : v;
+}
+// Array de texto normalizado: split por vírgula, trim, remove vazios, dedup, item ≤500,
+// lista ≤30 (espelha o CHECK de cardinalidade). Retorna [] (coluna é not null default '{}').
+function listaNorm(formData: FormData, campo: string): string[] {
+  const limpos = String(formData.get(campo) ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.slice(0, 500));
+  return [...new Set(limpos)].slice(0, 30);
+}
+// Tri-estado (sim/nao/'') → true/false/null. Preserva a distinção "não informado".
+function triestado(formData: FormData, campo: string): boolean | null {
+  const v = String(formData.get(campo) ?? "").trim();
+  if (v === "sim") return true;
+  if (v === "nao") return false;
+  return null;
+}
+// Ano opcional (smallint): inteiro em faixa estática 1950–2200 ou null.
+function anoOpcional(formData: FormData, campo: string): number | null {
+  const v = parseInt(String(formData.get(campo) ?? "").trim(), 10);
+  return Number.isInteger(v) && v >= 1950 && v <= 2200 ? v : null;
+}
+// Campos do model card / conformidade (padrão LIIA v0.3) — ALLOWLIST única, normalizada no
+// servidor, reusada por criar e editar. Nada aqui é enum de status; obrigatoriedade por risco
+// é regra de UX/curadoria, não CHECK no banco.
+function camposModelCard(formData: FormData) {
+  return {
+    versao: txt(formData, "versao", 60),
+    ano_inicio: anoOpcional(formData, "ano_inicio"),
+    supervisao_descricao: txt(formData, "supervisao_descricao", 1000),
+    responsavel_lgpd: txt(formData, "responsavel_lgpd", 300),
+    hospedagem_inferencia: opcional(formData, "hospedagem_inferencia", codes(HOSPEDAGEM_INFERENCIA)),
+    transferencia_internacional: opcional(formData, "transferencia_internacional", codes(TRANSFERENCIA_INTERNACIONAL)),
+    certificacao: txt(formData, "certificacao", 500),
+    impacto_etico: txt(formData, "impacto_etico", 4000),
+    grupos_afetados: listaNorm(formData, "grupos_afetados"),
+    mitigacoes: listaNorm(formData, "mitigacoes"),
+    ia_generativa: triestado(formData, "ia_generativa"),
+    avaliacao_vies: txt(formData, "avaliacao_vies", 4000),
+    robustez: txt(formData, "robustez", 4000),
+    explicabilidade: txt(formData, "explicabilidade", 4000),
+    auditoria_certificacoes: txt(formData, "auditoria_certificacoes", 1000),
+    canal_reclamacao: txt(formData, "canal_reclamacao", 500),
+    data_revisao_proxima: txt(formData, "data_revisao_proxima"),
+  };
 }
 
 // Alterna publicado/revisado no catálogo. Via Server Action protegida (getAdmin);
@@ -131,6 +183,7 @@ export async function criarCatalogo(formData: FormData) {
     responsavel_nome: String(formData.get("responsavel_nome") ?? "").trim() || null,
     responsavel_email: String(formData.get("responsavel_email") ?? "").trim() || null,
     responsavel_cargo: String(formData.get("responsavel_cargo") ?? "").trim() || null,
+    ...camposModelCard(formData),
     revisado: true,         // cadastrado manualmente pelo admin = já curado
     publicado: publicar,
     fonte: "cadastro manual",
@@ -205,6 +258,7 @@ export async function editarCatalogo(formData: FormData) {
     responsavel_nome: String(formData.get("responsavel_nome") ?? "").trim() || null,
     responsavel_email: String(formData.get("responsavel_email") ?? "").trim() || null,
     responsavel_cargo: String(formData.get("responsavel_cargo") ?? "").trim() || null,
+    ...camposModelCard(formData),
   }).eq("id", id);
   if (error) redirect(`${base}?erro=salvar`);
 

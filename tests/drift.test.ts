@@ -7,8 +7,9 @@ import {
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO,
   STATUS_MATURACAO, ESTAGIO,
   FUNDACAO_TIPO, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
-  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES,
+  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, TRANSFERENCIA_INTERNACIONAL,
 } from "../lib/enums";
+import { EVENTOS } from "../lib/metrica";
 import { calcEstagio, type PontoAtual, type JaUsado } from "../lib/estagio";
 
 const schema = readFileSync(
@@ -50,6 +51,19 @@ function valoresSql16(col: string): string[] {
   if (!m) throw new Error(`CHECK não encontrado para ${col} em 16_*`);
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
+// Migration 18 (model card): adiciona 'interesse' ao CHECK de acessos.evento e o CHECK de
+// transferencia_internacional. Lida à parte para não colidir com regex de outros arquivos.
+const schema18 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/18_model_card.sql"),
+  "utf8"
+);
+function valoresSql18(col: string): string[] {
+  const re = new RegExp(`${col} in \\(([^)]*)\\)`);
+  const m = schema18.match(re);
+  if (!m) throw new Error(`CHECK não encontrado para ${col} em 18_*`);
+  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+}
+
 // modalidades é validada por elemento: `modalidades <@ array['a','b',...]::text[]`
 function valoresSqlArray11(col: string): string[] {
   const re = new RegExp(`${col} <@ array\\[([^\\]]*)\\]`);
@@ -119,6 +133,17 @@ describe("anti-drift: enums das vitrines (item 5/7) TS ↔ CHECK do SQL (migrati
   });
   it("catalogo.bloco: códigos batem (migration 16, com 'internacional')", () => {
     expect(new Set(codes(BLOCO_ORIGEM))).toEqual(new Set(valoresSql16("bloco")));
+  });
+});
+
+describe("anti-drift: model card (migration 18) TS ↔ CHECK do SQL", () => {
+  it("acessos.evento: EVENTOS (metrica.ts) batem, com 'interesse'", () => {
+    expect(new Set(EVENTOS)).toEqual(new Set(valoresSql18("evento")));
+  });
+  it("transferencia_internacional: códigos batem", () => {
+    expect(new Set(codes(TRANSFERENCIA_INTERNACIONAL))).toEqual(
+      new Set(valoresSql18("transferencia_internacional"))
+    );
   });
 });
 

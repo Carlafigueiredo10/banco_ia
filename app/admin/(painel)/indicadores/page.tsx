@@ -81,6 +81,9 @@ export default async function IndicadoresPage() {
   }
   const rankSolucoes = ranking("clique_solucao", new Map(cat.map((c) => [c.id as string, c.titulo as string])));
   const rankBases = ranking("clique_base", new Map(fund.map((f) => [f.id as string, f.nome as string])));
+  // Interesse: sinal agregado de demanda (botão "Tenho interesse" no catálogo). Mesma RLS admin.
+  const interesseTotal = somar("interesse");
+  const rankInteresse = ranking("interesse", new Map(cat.map((c) => [c.id as string, c.titulo as string])));
 
   const porStatus = contar(rows, "status_maturacao", STATUS_MATURACAO);
   const porEstagio = contar(rows, "estagio", ESTAGIO);
@@ -163,7 +166,12 @@ export default async function IndicadoresPage() {
         <Card titulo="Bases" valor={`${visitasBases}`} sub="visitas a /fundacao" />
         <Card titulo="Cliques em soluções" valor={`${cliquesSolucao}`} sub="links do catálogo abertos" />
         <Card titulo="Cliques em bases" valor={`${cliquesBase}`} sub="bases reutilizáveis abertas" />
+        <Card titulo="Interesse" valor={`${interesseTotal}`} sub="manifestações de interesse" />
       </div>
+      <p style={{ fontSize: ".8rem", color: "#777", margin: "-4px 0 16px" }}>
+        <strong>Interesse</strong> é sinal agregado de demanda (botão “Tenho interesse” no catálogo).
+        Não representa usuários únicos nem avaliação de qualidade.
+      </p>
 
       {acessos.length === 0 && (
         <p style={{ background: "#eef3fb", border: "1px solid #c5d4ee", borderRadius: 6, padding: 12, marginBottom: 16, fontSize: ".9rem" }}>
@@ -181,6 +189,9 @@ export default async function IndicadoresPage() {
         </Bloco>
         <Bloco titulo={`Bases mais acessadas${rankBases.total > TOP_N ? ` · top ${TOP_N} de ${rankBases.total}` : ""}`}>
           {rankBases.top.length > 0 ? <BarrasH dados={rankBases.top} altura={280} /> : <Vazio />}
+        </Bloco>
+        <Bloco titulo={`Soluções com mais interesse${rankInteresse.total > TOP_N ? ` · top ${TOP_N} de ${rankInteresse.total}` : ""}`}>
+          {rankInteresse.top.length > 0 ? <BarrasH dados={rankInteresse.top} altura={280} /> : <Vazio />}
         </Bloco>
       </Grade>
 

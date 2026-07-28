@@ -194,6 +194,21 @@ export const SOBERANIA_CATALOGO: Opcao[] = [
   { value: "nao_se_aplica", label: "Não se aplica" },
 ];
 
+// Model card — hospedagem da inferência ("onde a inferência roda?"). Mesmo conjunto de
+// SOBERANIA_CATALOGO (o padrão LIIA usa esses valores em soberania_dados.hospedagem_inferencia).
+// Reuso justificado: os valores respondem diretamente à pergunta de hospedagem.
+export const HOSPEDAGEM_INFERENCIA: Opcao[] = SOBERANIA_CATALOGO;
+
+// Model card — transferência internacional de dados. Vocabulário CONTROLADO (não booleano):
+// 'nao_informado' e 'parcial' são estados de curadoria que um boolean não expressa.
+// Espelha o CHECK de catalogo_solucoes.transferencia_internacional (migration 18, anti-drift).
+export const TRANSFERENCIA_INTERNACIONAL: Opcao[] = [
+  { value: "nao", label: "Não" },
+  { value: "sim", label: "Sim" },
+  { value: "parcial", label: "Parcial" },
+  { value: "nao_informado", label: "Não informado" },
+];
+
 // Catálogo — bloco de origem (proveniência no PDF BBSIA v5.0, item 7)
 export const BLOCO_ORIGEM: Opcao[] = [
   { value: "gov", label: "Governamental (7.1.A)" },
