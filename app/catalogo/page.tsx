@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
+import RegistraVisita from "@/components/metrica/RegistraVisita";
+import LinkExterno from "@/components/metrica/LinkExterno";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import {
   AREA, NIVEL_GOVERNO, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, BLOCO_ORIGEM,
@@ -41,6 +43,7 @@ export default async function CatalogoPage({
 
   return (
     <>
+      <RegistraVisita rota="/catalogo" />
       <Header />
       <Main>
         <h1 style={{ fontSize: "1.8rem", marginBottom: 8 }}>Catálogo de soluções</h1>
@@ -87,9 +90,14 @@ export default async function CatalogoPage({
                   <div style={{ fontSize: ".78rem", color: "#666" }}>{(r.frameworks as string[]).join(" · ")}</div>
                 )}
                 {r.link && (
-                  <a href={r.link as string} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", marginTop: 10, color: "var(--bbsia-azul)", fontSize: ".85rem", fontWeight: 600 }}>
+                  <LinkExterno
+                    href={r.link as string}
+                    evento="clique_solucao"
+                    chave={r.id as string}
+                    style={{ display: "inline-block", marginTop: 10, color: "var(--bbsia-azul)", fontSize: ".85rem", fontWeight: 600 }}
+                  >
                     Acessar ↗
-                  </a>
+                  </LinkExterno>
                 )}
               </article>
             ))}

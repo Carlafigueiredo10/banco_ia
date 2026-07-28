@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
+import RegistraVisita from "@/components/metrica/RegistraVisita";
+import LinkExterno from "@/components/metrica/LinkExterno";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +42,7 @@ export default async function FundacaoPage({
 
   return (
     <>
+      <RegistraVisita rota="/fundacao" />
       <Header />
       <Main>
         <h1 style={{ fontSize: "1.8rem", marginBottom: 8 }}>Bases reutilizáveis</h1>
@@ -98,11 +101,11 @@ function Secao({ titulo, itens, tipo }: { titulo: string; itens: Row[]; tipo: "r
       <h2 style={{ fontSize: "1.2rem", color: "var(--bbsia-azul-escuro)", marginBottom: 14 }}>{titulo}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {itens.map((r) => (
-          <a
+          <LinkExterno
             key={r.id as string}
             href={(r.url as string) ?? "#"}
-            target="_blank"
-            rel="noopener noreferrer"
+            evento="clique_base"
+            chave={r.id as string}
             style={{ border: "1px solid #d9e1ef", borderRadius: 8, padding: 16, textDecoration: "none", color: "inherit", display: "block" }}
           >
             <div style={{ fontWeight: 700, color: "var(--bbsia-azul)", marginBottom: 4 }}>{r.nome}</div>
@@ -113,7 +116,7 @@ function Secao({ titulo, itens, tipo }: { titulo: string; itens: Row[]; tipo: "r
               {(tipo === "repo" || tipo === "software") && r.stack && <Chip>{r.stack as string}</Chip>}
               {tipo === "fonte_dados" && r.tipo_dado && <Chip>{r.tipo_dado as string}</Chip>}
             </div>
-          </a>
+          </LinkExterno>
         ))}
       </div>
     </section>

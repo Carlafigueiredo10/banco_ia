@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
+import RegistraVisita from "@/components/metrica/RegistraVisita";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export default async function Home() {
 
   return (
     <>
+      <RegistraVisita rota="/" />
       <Header />
       <Main>
         <section style={{ textAlign: "center", padding: "24px 0 8px" }}>

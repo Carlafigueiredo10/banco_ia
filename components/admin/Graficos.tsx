@@ -37,6 +37,27 @@ export function BarrasV({ dados, altura = 240 }: { dados: Serie[]; altura?: numb
   );
 }
 
+// Série temporal simples (sem linha de meta) — usada pelas visitas diárias.
+export function CurvaDiaria({
+  dados,
+  rotulo,
+}: {
+  dados: { data: string; valor: number }[];
+  rotulo: string;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <LineChart data={dados} margin={{ left: 0, right: 16 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="data" tick={{ fontSize: 11 }} />
+        <YAxis allowDecimals={false} />
+        <Tooltip />
+        <Line type="monotone" name={rotulo} dataKey="valor" stroke={AZUL} strokeWidth={2} dot={{ r: 2 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function CurvaCaptacao({
   dados,
   meta,

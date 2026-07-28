@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { BarrasH, BarrasV, CurvaCaptacao, type Serie } from "@/components/admin/Graficos";
+import { BarrasH, BarrasV, CurvaCaptacao, CurvaDiaria, type Serie } from "@/components/admin/Graficos";
 import BrasilMapa from "@/components/admin/BrasilMapa";
 import {
   STATUS_MATURACAO, ESTAGIO, TIPO_ATIVO, TECNOLOGIA_IA, AREA, NIVEL_GOVERNO,
@@ -37,12 +37,50 @@ export default async function IndicadoresPage() {
   const catPorArea = contar(cat, "area", AREA);
   const catPorNivel = contar(cat, "nivel_governo", NIVEL_GOVERNO);
 
-  const { data: fundData } = await supabase.from("fundacao").select("tipo, publicado");
+  const { data: fundData } = await supabase.from("fundacao").select("id, nome, tipo, publicado");
   const fund = (fundData ?? []) as Sub[];
   const fundRepos = fund.filter((r) => r.tipo === "repo").length;
   const fundFontes = fund.filter((r) => r.tipo === "fonte_dados").length;
   const fundSoftware = fund.filter((r) => r.tipo === "software").length;
   const fundPublicados = fund.filter((r) => r.publicado).length;
+
+  // ===== Visitas (tabela `acessos`: agregado por dia, sem dado pessoal) =====
+  const { data: acessosData } = await supabase.from("acessos").select("dia, evento, chave, contagem");
+  const acessos = (acessosData ?? []) as Sub[];
+  const somar = (evento: string, chave?: string) =>
+    acessos
+      .filter((a) => a.evento === evento && (chave === undefined || a.chave === chave))
+      .reduce((s, a) => s + (a.contagem as number), 0);
+
+  const visitasLanding = somar("pagina", "/");
+  const visitasCatalogo = somar("pagina", "/catalogo");
+  const visitasBases = somar("pagina", "/fundacao");
+  const cliquesSolucao = somar("clique_solucao");
+  const cliquesBase = somar("clique_base");
+
+  // Curva diária de visitas (soma das três páginas públicas medidas)
+  const visitasPorDia = new Map<string, number>();
+  for (const a of acessos.filter((x) => x.evento === "pagina")) {
+    visitasPorDia.set(a.dia as string, (visitasPorDia.get(a.dia as string) ?? 0) + (a.contagem as number));
+  }
+  const curvaVisitas = Array.from(visitasPorDia.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([d, valor]) => ({ data: d.slice(5).split("-").reverse().join("/"), valor }));
+
+  // Ranking de cliques por item — a chave é o uuid; o nome vem do catálogo/fundação.
+  const TOP_N = 10;
+  function ranking(evento: string, nomes: Map<string, string>) {
+    const porChave = new Map<string, number>();
+    for (const a of acessos.filter((x) => x.evento === evento)) {
+      porChave.set(a.chave as string, (porChave.get(a.chave as string) ?? 0) + (a.contagem as number));
+    }
+    const todos: Serie[] = Array.from(porChave.entries())
+      .map(([id, valor]) => ({ nome: nomes.get(id) ?? "(item removido do painel)", valor }))
+      .sort((x, y) => y.valor - x.valor);
+    return { top: todos.slice(0, TOP_N), total: todos.length };
+  }
+  const rankSolucoes = ranking("clique_solucao", new Map(cat.map((c) => [c.id as string, c.titulo as string])));
+  const rankBases = ranking("clique_base", new Map(fund.map((f) => [f.id as string, f.nome as string])));
 
   const porStatus = contar(rows, "status_maturacao", STATUS_MATURACAO);
   const porEstagio = contar(rows, "estagio", ESTAGIO);
@@ -115,7 +153,38 @@ export default async function IndicadoresPage() {
         </p>
       )}
 
-      <h2 style={tituloBloco}>Captação <span style={subBloco}>· submissões pelo formulário</span></h2>
+      {/* ===== Bloco 0: Visitas ===== */}
+      <h2 style={tituloBloco}>
+        Visitas <span style={subBloco}>· uso público do site (contagem agregada, sem dado pessoal)</span>
+      </h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 16 }}>
+        <Card titulo="Landing" valor={`${visitasLanding}`} sub="visitas à página inicial" />
+        <Card titulo="Catálogo" valor={`${visitasCatalogo}`} sub="visitas a /catalogo" />
+        <Card titulo="Bases" valor={`${visitasBases}`} sub="visitas a /fundacao" />
+        <Card titulo="Cliques em soluções" valor={`${cliquesSolucao}`} sub="links do catálogo abertos" />
+        <Card titulo="Cliques em bases" valor={`${cliquesBase}`} sub="bases reutilizáveis abertas" />
+      </div>
+
+      {acessos.length === 0 && (
+        <p style={{ background: "#eef3fb", border: "1px solid #c5d4ee", borderRadius: 6, padding: 12, marginBottom: 16, fontSize: ".9rem" }}>
+          Ainda não há visitas registradas. A contagem começa no primeiro acesso ao site publicado —
+          navegação em <code>localhost</code> é ignorada de propósito, para não inflar o painel.
+        </p>
+      )}
+
+      <Grade>
+        <Bloco titulo="Visitas por dia (todas as páginas medidas)">
+          {curvaVisitas.length > 0 ? <CurvaDiaria dados={curvaVisitas} rotulo="visitas" /> : <Vazio />}
+        </Bloco>
+        <Bloco titulo={`Soluções mais acessadas${rankSolucoes.total > TOP_N ? ` · top ${TOP_N} de ${rankSolucoes.total}` : ""}`}>
+          {rankSolucoes.top.length > 0 ? <BarrasH dados={rankSolucoes.top} altura={280} /> : <Vazio />}
+        </Bloco>
+        <Bloco titulo={`Bases mais acessadas${rankBases.total > TOP_N ? ` · top ${TOP_N} de ${rankBases.total}` : ""}`}>
+          {rankBases.top.length > 0 ? <BarrasH dados={rankBases.top} altura={280} /> : <Vazio />}
+        </Bloco>
+      </Grade>
+
+      <h2 style={{ ...tituloBloco, marginTop: 40 }}>Captação <span style={subBloco}>· submissões pelo formulário</span></h2>
 
       {/* Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
