@@ -52,8 +52,17 @@ export default async function AdminRevisoresPage() {
                 <td style={td}>{r.orgao}</td>
                 <td style={td}>{labelOf(NIVEL_GOVERNO, r.nivel_governo)} · {r.uf}</td>
                 <td style={td}>{labelOf(AREA, r.area_atuacao)}</td>
-                <td style={{ ...td, maxWidth: 260, whiteSpace: "pre-wrap" }}>{r.indicacao}</td>
-                <td style={{ ...td, maxWidth: 260, whiteSpace: "pre-wrap" }}>{r.motivacao}</td>
+                {/* maxWidth em <td> é ignorado pelo layout automático de tabela; no <div> vale. */}
+                <td style={td}><div style={{ maxWidth: 280, whiteSpace: "pre-wrap" }}>{r.indicacao}</div></td>
+                {/* Motivação é texto longo (média ~750 caracteres): fica recolhida para não esticar a linha. */}
+                <td style={td}>
+                  {r.motivacao ? (
+                    <details>
+                      <summary style={sum}>Ver motivação</summary>
+                      <div style={{ maxWidth: 420, whiteSpace: "pre-wrap", marginTop: 6 }}>{r.motivacao}</div>
+                    </details>
+                  ) : "—"}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && <tr><td style={td} colSpan={8}>Nenhuma inscrição ainda.</td></tr>}
@@ -66,3 +75,7 @@ export default async function AdminRevisoresPage() {
 
 const th: React.CSSProperties = { padding: "8px 10px", whiteSpace: "nowrap" };
 const td: React.CSSProperties = { padding: "8px 10px", verticalAlign: "top" };
+const sum: React.CSSProperties = {
+  cursor: "pointer", color: "#1351b4", fontWeight: 600,
+  fontSize: ".85rem", whiteSpace: "nowrap",
+};
