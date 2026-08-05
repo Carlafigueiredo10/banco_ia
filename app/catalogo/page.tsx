@@ -92,6 +92,16 @@ export default async function CatalogoPage({
                   {r.titulo}
                 </Link>
                 <div style={{ fontSize: ".8rem", color: "#777", marginBottom: 8 }}>{r.orgao}</div>
+                {/* Marca de ORIGEM (o bloco de proveniência). Distinta de "integrada", que é
+                    reservado ao dado federado de terceiro (/judiciario) — aqui tudo passou pela
+                    curadoria do BBSIA, e apagar essa diferença esvaziaria o crédito à fonte. */}
+                {r.bloco && (
+                  <div style={{ marginBottom: 8 }}>
+                    <span style={{ background: "#fff", border: "1px solid #b9b9b9", color: "#5a5a5a", borderRadius: 12, padding: "1px 9px", fontSize: ".68rem", fontWeight: 600 }}>
+                      Origem: {labelOf(BLOCO_ORIGEM, r.bloco as string)}
+                    </span>
+                  </div>
+                )}
                 {(r.descricao || r.impacto) && (
                   <p style={{ margin: "0 0 10px", fontSize: ".9rem", color: "#444", lineHeight: 1.45 }}>
                     {truncar(((r.descricao as string) || (r.impacto as string)), 155)}

@@ -7,7 +7,7 @@ import TenhoInteresse from "@/components/metrica/TenhoInteresse";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { Campos, Secao, formatarData, type CampoT } from "@/components/ui/Ficha";
 import {
-  AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
+  AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO, BLOCO_ORIGEM,
   SOBERANIA_CATALOGO, HOSPEDAGEM_INFERENCIA, TRANSFERENCIA_INTERNACIONAL, MODALIDADES,
   labelOf,
 } from "@/lib/enums";
@@ -45,6 +45,9 @@ export default async function FichaSolucaoPage({ params }: { params: Promise<{ i
   const riscoAlto = r.nivel_risco === "alto" || r.nivel_risco === "inaceitavel";
 
   const fichaTecnica: CampoT[] = [
+    // Proveniência: de onde veio o registro. Não confundir com as fontes INTEGRADAS
+    // (/judiciario), que não passam pela curadoria e não vivem nesta tabela.
+    { rotulo: "Origem", valor: r.bloco ? labelOf(BLOCO_ORIGEM, s(r.bloco)) : null },
     { rotulo: "Tipo", valor: r.tipo_solucao ? labelOf(TIPO_SOLUCAO, s(r.tipo_solucao)) : null },
     { rotulo: "Versão", valor: s(r.versao) },
     { rotulo: "Em uso desde", valor: r.ano_inicio != null ? String(r.ano_inicio) : null },
