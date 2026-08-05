@@ -2,8 +2,20 @@ import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
 import RegistraVisita from "@/components/metrica/RegistraVisita";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
+import { carregarBase } from "@/lib/sinapses";
 
 export const dynamic = "force-dynamic";
+
+// FONTES INTEGRADAS — soluções que o BBSIA exibe mas NÃO curou.
+// Entram no total de "Soluções mapeadas" (em algum lugar tem que aparecer o tamanho real
+// do banco), sempre com marca de fonte: o número é do CNJ, a curadoria não é nossa.
+// A lista é a costura para as próximas integrações; hoje só o Judiciário.
+//
+// `dynamic = "force-dynamic"` acima faz os fetch() da rota virarem no-store, mas NÃO
+// alcança o unstable_cache de lib/sinapses.ts — que é outro mecanismo, com chave própria.
+// Verificado: a home não gera consulta nova ao CNJ (tests/sinapses.test.ts guarda o
+// force-dynamic das páginas de /judiciario; aqui a checagem foi manual, ver ADR).
+type Integracao = { rotulo: string; n: number; href: string; fonte: string };
 
 type Contadores = {
   solucoes_mapeadas: number;
@@ -26,6 +38,21 @@ export default async function Home() {
   const supabase = createSupabaseAnonClient();
   const { data } = await supabase.rpc("contadores_publicos");
   const c = (data ?? null) as Contadores | null;
+
+  // Se a fonte integrada estiver fora do ar, a home NÃO quebra e NÃO inventa número:
+  // simplesmente não soma e não mostra o card daquela integração.
+  const integracoes: Integracao[] = [];
+  const sinapses = await carregarBase();
+  if (sinapses.estado === "disponivel") {
+    integracoes.push({
+      rotulo: "Projetos do Judiciário",
+      n: sinapses.base.totalValidos,
+      href: "/judiciario",
+      fonte: "CNJ · Sinapses",
+    });
+  }
+  const nIntegradas = integracoes.reduce((s, i) => s + i.n, 0);
+  const curadasPorNos = c?.solucoes_mapeadas ?? 0;
 
   return (
     <>
@@ -75,12 +102,33 @@ export default async function Home() {
         </section>
 
         {c && (
-          <section aria-label="Números do banco" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-            <Numero valor={c.solucoes_mapeadas} rotulo="Soluções mapeadas" href="/catalogo" />
-            <Numero valor={c.publicadas} rotulo="Soluções publicadas" href="/catalogo" />
-            <Numero valor={c.em_curadoria} rotulo="Em curadoria" />
-            <Numero valor={c.bases_reutilizaveis} rotulo="Bases reutilizáveis" href="/fundacao" />
-          </section>
+          <>
+            <section aria-label="Números do banco" style={{ marginTop: 32, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+              {/* O total inclui as fontes integradas — é o tamanho real do que o banco
+                  entrega. A nota abaixo separa o que é curadoria nossa do que é integração. */}
+              <Numero
+                valor={curadasPorNos + nIntegradas}
+                rotulo="Soluções mapeadas"
+                href="/catalogo"
+                nota={nIntegradas > 0 ? `${curadasPorNos} curadas · ${nIntegradas} integradas` : undefined}
+              />
+              <Numero valor={c.publicadas} rotulo="Soluções publicadas" href="/catalogo" />
+              <Numero valor={c.em_curadoria} rotulo="Em curadoria" />
+              <Numero valor={c.bases_reutilizaveis} rotulo="Bases reutilizáveis" href="/fundacao" />
+              {integracoes.map((i) => (
+                <Numero key={i.href} valor={i.n} rotulo={i.rotulo} href={i.href} fonte={i.fonte} />
+              ))}
+            </section>
+
+            {nIntegradas > 0 && (
+              <p style={{ marginTop: 10, fontSize: ".82rem", color: "#777" }}>
+                <strong>Integradas</strong> são soluções exibidas no BBSIA a partir de fontes
+                públicas de outras instituições, com crédito à origem. Elas contam no total, mas{" "}
+                <strong>não passaram pela curadoria do banco</strong> e não entram em
+                &ldquo;publicadas&rdquo; nem em &ldquo;em curadoria&rdquo;.
+              </p>
+            )}
+          </>
         )}
 
         <section aria-label="Contribuir com a validação" style={{ marginTop: 32, background: "#eef3fb", border: "1px solid #c5d4ee", borderRadius: 8, padding: "20px 24px", display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}>
@@ -117,11 +165,26 @@ export default async function Home() {
   );
 }
 
-function Numero({ valor, rotulo, href }: { valor: number; rotulo: string; href?: string }) {
+function Numero({ valor, rotulo, href, nota, fonte }: {
+  valor: number; rotulo: string; href?: string;
+  /** Composição do número (ex.: "158 curadas · 159 integradas"). */
+  nota?: string;
+  /** Marca de fonte: presente quando o número NÃO é curadoria do BBSIA. */
+  fonte?: string;
+}) {
   const corpo = (
     <div style={{ border: "1px solid #d9e1ef", borderRadius: 8, padding: "14px 16px", textAlign: "center", height: "100%" }}>
       <div style={{ fontSize: "1.9rem", fontWeight: 800, color: "var(--bbsia-azul-escuro)" }}>{valor}</div>
       <div style={{ fontSize: ".8rem", color: "#666" }}>{rotulo}</div>
+      {nota && <div style={{ fontSize: ".68rem", color: "#999", marginTop: 4 }}>{nota}</div>}
+      {fonte && (
+        // Cinza, fora da paleta de curadoria (azul) — a marca da fonte viaja com o número.
+        <div style={{ marginTop: 6 }}>
+          <span style={{ background: "#fff", border: "1px solid #9a9a9a", color: "#5a5a5a", borderRadius: 12, padding: "1px 8px", fontSize: ".65rem", fontWeight: 600, whiteSpace: "nowrap" }}>
+            {fonte}
+          </span>
+        </div>
+      )}
     </div>
   );
   return href ? (

@@ -96,9 +96,31 @@ O snapshot ficou **menor que o payload bruto** (446 KB) porque o `bruto` é desc
 por allowlist é persistida. Cache confirmado: `consultadoEm` idêntico em 6 cargas distintas (lista,
 três listas filtradas e duas fichas) — uma consulta só à origem.
 
-**Aceitas.** Os projetos do Judiciário **não** entram nas contagens do `/catalogo`, **não** saem no
-export CSV e **não** são editáveis pela curadoria — são dado do CNJ, não nosso. Se a coordenação
-quiser curar um projeto específico, o caminho é cadastrá-lo no catálogo com link próprio.
+**Aceitas.** Os projetos do Judiciário **não** saem no export CSV e **não** são editáveis pela
+curadoria — são dado do CNJ, não nosso. Se a coordenação quiser curar um projeto específico, o
+caminho é cadastrá-lo no catálogo com link próprio.
+
+### Contadores da home — revisto em 05/08/2026 (decisão da coordenação)
+
+A v1 desta decisão mantinha os 159 fora de todos os contadores. **Mudou:** eles entram em
+"Soluções mapeadas" (158 + 159 = 317), **com marca de fonte**, e ganham card próprio linkando para
+`/judiciario`. Racional da coordenação: em algum lugar precisa aparecer o tamanho real do que o banco
+entrega — isso engaja — e virão outras integrações.
+
+A separação que sustenta o crédito ao CNJ continua de pé, em três camadas:
+- o card próprio leva o chip cinza **"CNJ · Sinapses"**, fora da paleta de curadoria;
+- o card do total mostra a composição (`158 curadas · 159 integradas`);
+- uma nota abaixo dos números define "integradas": exibidas a partir de fontes públicas de outras
+  instituições, com crédito à origem, **sem passar pela curadoria do banco**.
+
+**"Publicadas" e "Em curadoria" não mudam** — continuam contando só o nosso pipeline.
+`app/page.tsx` monta isso a partir de uma lista `Integracao[]`, que é a costura para as próximas
+fontes. Se a origem estiver fora do ar, a home não soma, não mostra o card e **não inventa número**.
+
+*Verificado empiricamente:* `dynamic = "force-dynamic"` na home **não** derruba o `unstable_cache` —
+são mecanismos distintos, e o `force-dynamic` só governa `fetch()`. Nove cargas da home mais uma da
+vitrine consumiram **3 requisições** ao CNJ (medido pelo `X-RateLimit-Remaining`: 59 → 55, descontados
+dois probes manuais).
 
 **Riscos conhecidos.**
 - *Estabilidade da origem.* A homologação **caiu durante a implementação** (503 do load balancer, às
