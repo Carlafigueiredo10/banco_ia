@@ -83,20 +83,37 @@ desliga sozinho quando `SINAPSES_API_URL` apontar para produção.
 responsável pelo dado; custo de ~3 requisições por dia (5 se houver retry por inconsistência), contra
 um teto de 60 req/min publicado por eles.
 
+**Medido contra a API real em 05/08/2026** (após a origem voltar do 503):
+
+| Medida | Valor |
+|---|---|
+| Projetos informados / recebidos / válidos | 159 / 159 / 159 |
+| Descartados · duplicados | 0 · 0 |
+| Vocabulários em `/enums` | 16 campos, sem degradação |
+| **Snapshot serializado** | **401 KB** — 77% de folga sob a guarda de 1,8 MB |
+
+O snapshot ficou **menor que o payload bruto** (446 KB) porque o `bruto` é descartado e só a projeção
+por allowlist é persistida. Cache confirmado: `consultadoEm` idêntico em 6 cargas distintas (lista,
+três listas filtradas e duas fichas) — uma consulta só à origem.
+
 **Aceitas.** Os projetos do Judiciário **não** entram nas contagens do `/catalogo`, **não** saem no
 export CSV e **não** são editáveis pela curadoria — são dado do CNJ, não nosso. Se a coordenação
 quiser curar um projeto específico, o caminho é cadastrá-lo no catálogo com link próprio.
 
 **Riscos conhecidos.**
 - *Estabilidade da origem.* A homologação **caiu durante a implementação** (503 do load balancer, às
-  03h de 05/08/2026). A degradação graciosa não é precaução teórica: é requisito comprovado em campo.
+  03h de 05/08/2026, voltando por volta das 16h30). A degradação graciosa não é precaução teórica: é
+  requisito comprovado em campo — durante a queda, `/judiciario` respondeu 200 com a página de
+  indisponibilidade, Header e Footer inteiros.
 - *Cache contra o header deles.* Cacheamos 24 h apesar do `Cache-Control: no-cache, private`. A
   escolha é para **protegê-los** (3 req/dia em vez de N por visita), com TTL curto e "consultado em"
   visível na página. Consta da pauta a confirmar com o CNJ.
-- *Ordenação de paginação.* `sort` aceita só `nome | ano_inicio | updated_at` — **não há chave
-  única**. Se a base mudar entre a primeira e a última página, a coleta pode escorregar. Mitigação:
-  dedup por `pid`, conferência de contagens e **uma** repetição da coleta; persistindo a divergência,
-  o snapshot anterior é mantido.
+- *Ordenação de paginação.* `sort` aceita só `nome | ano_inicio | updated_at` (`sort=pid` responde
+  422) — **não há chave única**. Pedimos `sort=nome&order=asc` explicitamente em todas as páginas:
+  é a mais estável sob escrita, já que nome muda raramente; `updated_at` seria a pior escolha, pois
+  toda edição reordenaria a coleta em andamento. Como `nome` pode repetir, permanecem o dedup por
+  `pid`, a conferência de contagens e **uma** repetição da coleta; persistindo a divergência, o
+  snapshot anterior é mantido.
 - *Stale-on-error não provado.* A expectativa é que o Data Cache sirva o último valor válido quando a
   revalidação falha. **Ainda não foi provado na Vercel** (ver README, seção de verificação). Até lá, a
   promessa nos textos é "tenta preservar", não "preserva". Se não preservar, fica a página de

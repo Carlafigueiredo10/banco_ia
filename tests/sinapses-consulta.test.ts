@@ -34,7 +34,7 @@ function falso(
   const chamadas: string[] = [];
   const f = (async (entrada: string | URL | Request) => {
     const url = new URL(String(entrada));
-    chamadas.push(`${url.pathname}?${url.searchParams.get("page") ?? ""}`);
+    chamadas.push(`${url.pathname}?${url.search}`);
     return rotas(url, chamadas.length);
   }) as Buscar & { chamadas: string[] };
   f.chamadas = chamadas;
@@ -67,6 +67,26 @@ describe("Sinapses/consulta — paginação", () => {
     const base = await buscarBaseRemota(BASE, "homologacao", buscar);
     expect(base.totalValidos).toBe(6);
     expect(buscar.chamadas.filter((c) => c.includes("/publico/v1/projetos?"))).toHaveLength(3);
+  });
+
+  it("pede ordenação EXPLÍCITA em todas as páginas", async () => {
+    // Sem `sort`, a ordem é a que o banco do CNJ devolver: um registro inserido entre a
+    // página 1 e a 2 desloca itens, duplicando um projeto e sumindo com outro.
+    // `nome` é a mais estável das três aceitas (nome|ano_inicio|updated_at, verificado
+    // contra a API em 05/08/2026); `updated_at` seria a pior, pois toda edição reordena.
+    const buscar = falso((url) => {
+      if (!ehPaginas(url)) return json(ENUMS);
+      const p = Number(url.searchParams.get("page"));
+      return json(pagina([item(p)], 2, 2));
+    });
+    await buscarBaseRemota(BASE, "homologacao", buscar);
+
+    const paginas = buscar.chamadas.filter((c) => c.includes("/publico/v1/projetos?"));
+    expect(paginas.length).toBe(2);
+    for (const c of paginas) {
+      expect(c, c).toContain("sort=nome");
+      expect(c, c).toContain("order=asc");
+    }
   });
 
   it("recusa last_page acima do teto em vez de publicar base 'completa'", async () => {

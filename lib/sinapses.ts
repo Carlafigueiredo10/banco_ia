@@ -141,6 +141,17 @@ function urlProjetos(baseUrl: string, pagina: number): URL {
   const url = new URL(`${baseUrl}/publico/v1/projetos`);
   url.searchParams.set("per_page", String(POR_PAGINA));
   url.searchParams.set("page", String(pagina));
+  // Ordenação EXPLÍCITA em todas as páginas: sem ela, a ordem é a que o banco do CNJ
+  // devolver, e um registro inserido entre a página 1 e a 2 desloca itens — um projeto
+  // apareceria duplicado e outro sumiria em silêncio.
+  //
+  // `nome` entre as três opções aceitas (verificado em 05/08/2026: nome | ano_inicio |
+  // updated_at; `sort=pid` responde 422). É a mais estável sob escrita: nome muda
+  // raramente. `updated_at` seria a PIOR escolha — toda edição reordenaria a coleta em
+  // andamento. Não é chave única (nomes podem repetir), por isso o dedup por pid, a
+  // conferência de contagens e a repetição única continuam valendo.
+  url.searchParams.set("sort", "nome");
+  url.searchParams.set("order", "asc");
   return url;
 }
 
@@ -227,9 +238,9 @@ export async function buscarBaseRemota(
   let coleta = await coletarProjetos(baseUrl, buscar, orcamento);
   let n = normalizarLote(coleta.itens);
 
-  // A API não oferece ordenação por chave única (`sort` aceita só nome|ano_inicio|updated_at),
-  // então a paginação pode escorregar se a base mudar entre a página 1 e a última.
-  // Uma repetição, e só uma — sem loop.
+  // Pedimos ordem explícita por `nome` (ver urlProjetos), mas ela não é chave ÚNICA — a API
+  // não aceita ordenar por pid. Se a base mudar entre a primeira e a última página, a coleta
+  // ainda pode escorregar. Uma repetição, e só uma — sem loop.
   if (n.totalRecebido !== coleta.totalInformado || n.duplicados > 0) {
     coleta = await coletarProjetos(baseUrl, buscar, orcamento);
     n = normalizarLote(coleta.itens);
