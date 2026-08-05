@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": [
+    "SOBERANIA DE DADOS — decisão registrada em docs/ADR_INFRAESTRUTURA.md.",
+    "gru1 = São Paulo. Fixa a execução de TODA função (SSR + route handlers) em solo",
+    "brasileiro. Sem esta chave, a Vercel usa iad1 (Washington, DC) por padrão — o que",
+    "faria /api/submissao processar nome, e-mail, telefone, cargo e órgão fora do país.",
+    "O banco (Supabase) já está em sa-east-1 (São Paulo): com isso, dado em repouso E",
+    "dado em processamento ficam no Brasil.",
+    "ATENÇÃO: geografia não resolve jurisdição. Vercel e Supabase são empresas dos EUA e",
+    "seguem alcançáveis pelo CLOUD Act. Isto é mitigação, não solução — o plano de saída",
+    "para infraestrutura nacional está no ADR."
+  ],
+
+  "regions": ["gru1"]
+}

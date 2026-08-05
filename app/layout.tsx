@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import "@govbr-ds/core/dist/core.min.css";
 import "./globals.css";
 
@@ -28,9 +27,12 @@ export default function RootLayout({
           Ir para o conteúdo
         </a>
         {children}
-        {/* Vercel Web Analytics — contagem agregada de visitas/pageviews, sem cookie
-            e sem dado pessoal (coerente com a LGPD e com /privacidade). */}
-        <Analytics />
+        {/* Sem telemetria de terceiro. A contagem de visitas é nossa: /api/metrica →
+            RPC registrar_acesso → tabela public.acessos (migration 17), agregada por
+            (dia, evento, chave). Não guarda IP, user-agent, sessão nem referrer, e o
+            dado não sai do banco em São Paulo. O @vercel/analytics foi removido por
+            ser redundante com isso e por enviar telemetria de visitante para infra
+            estrangeira — ver docs/ADR_INFRAESTRUTURA.md. */}
       </body>
     </html>
   );
