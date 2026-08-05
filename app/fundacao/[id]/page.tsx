@@ -4,6 +4,7 @@ import { Header, Footer, Main } from "@/components/ui/Shell";
 import RegistraVisita from "@/components/metrica/RegistraVisita";
 import LinkExterno from "@/components/metrica/LinkExterno";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
+import { Secao, formatarData, type CampoT } from "@/components/ui/Ficha";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,6 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 type Row = Record<string, string | number | null>;
-type CampoT = { rotulo: string; valor: string | null };
 
 export default async function FichaBasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -74,26 +74,3 @@ export default async function FichaBasePage({ params }: { params: Promise<{ id: 
   );
 }
 
-function Secao({ titulo, campos }: { titulo: string; campos: CampoT[] }) {
-  const visiveis = campos.filter((c) => c.valor != null && c.valor !== "");
-  if (visiveis.length === 0) return null;
-  return (
-    <section style={{ marginTop: 20 }}>
-      <h2 style={{ fontSize: "1rem", color: "#0c326f", borderBottom: "1px solid #dde3ee", paddingBottom: 6, margin: "0 0 10px" }}>{titulo}</h2>
-      <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "4px 20px", margin: 0 }}>
-        {visiveis.map((c) => (
-          <div key={c.rotulo} style={{ marginBottom: 8 }}>
-            <dt style={{ fontSize: ".75rem", color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".03em" }}>{c.rotulo}</dt>
-            <dd style={{ margin: 0, color: "#333", fontSize: ".95rem", lineHeight: 1.5 }}>{c.valor}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-function formatarData(v: string | null): string | null {
-  if (!v) return null;
-  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : v;
-}

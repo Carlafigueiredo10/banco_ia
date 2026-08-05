@@ -5,6 +5,7 @@ import RegistraVisita from "@/components/metrica/RegistraVisita";
 import LinkExterno from "@/components/metrica/LinkExterno";
 import TenhoInteresse from "@/components/metrica/TenhoInteresse";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
+import { Campos, Secao, formatarData, type CampoT } from "@/components/ui/Ficha";
 import {
   AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, HOSPEDAGEM_INFERENCIA, TRANSFERENCIA_INTERNACIONAL, MODALIDADES,
@@ -24,7 +25,6 @@ const COLS =
   "canal_reclamacao, data_revisao_proxima";
 
 type Row = Record<string, string | string[] | number | boolean | null>;
-type CampoT = { rotulo: string; valor: string | null; bloco?: boolean };
 
 export default async function FichaSolucaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -149,33 +149,6 @@ export default async function FichaSolucaoPage({ params }: { params: Promise<{ i
   );
 }
 
-// Esconde só null/''/vazio — NUNCA esconde "Não avaliado"/"Não aplicável" (dado útil de curadoria).
-function Campos({ campos }: { campos: CampoT[] }) {
-  const visiveis = campos.filter((c) => c.valor != null && c.valor !== "");
-  if (visiveis.length === 0) return null;
-  return (
-    <dl style={dl}>
-      {visiveis.map((c) => (
-        <div key={c.rotulo} style={{ marginBottom: 8, ...(c.bloco ? { gridColumn: "1 / -1" } : {}) }}>
-          <dt style={{ fontSize: ".75rem", color: "#888", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".03em" }}>{c.rotulo}</dt>
-          <dd style={{ margin: 0, color: "#333", fontSize: ".95rem", lineHeight: 1.5, whiteSpace: c.bloco ? "pre-wrap" : "normal" }}>{c.valor}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-// Só renderiza a seção (título incluso) se algum campo tiver valor — evita seção/título órfão.
-function Secao({ titulo, campos }: { titulo: string; campos: CampoT[] }) {
-  if (!campos.some((c) => c.valor != null && c.valor !== "")) return null;
-  return (
-    <section style={{ marginTop: 20 }}>
-      <h2 style={{ fontSize: "1rem", color: "#0c326f", borderBottom: "1px solid #dde3ee", paddingBottom: 6, margin: "0 0 10px" }}>{titulo}</h2>
-      <Campos campos={campos} />
-    </section>
-  );
-}
-
 function statusCor(v: string | null): string {
   if (v === "ativo") return "#155724";
   if (v === "em_revisao") return "#8a6100";
@@ -187,10 +160,3 @@ function statusRiscoCor(v: string | null): string {
   if (v === "limitado") return "#8a6100";
   return "#155724";
 }
-function formatarData(v: string | null): string | null {
-  if (!v) return null;
-  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : v;
-}
-
-const dl: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "4px 20px", margin: 0 };
