@@ -36,6 +36,12 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
 - **Toda escrita pública passa por `/api/submissao`** (Zod `.strict()`, honeypot, rate limit via RPC).
 - **Rotas admin revalidam admin na própria rota** (`getAdmin()` em `lib/auth-guard.ts`).
 - **CSV** sempre via `lib/csv.ts` (escapa injeção `= + - @`).
+- **Região de execução é decisão de projeto, não default do fornecedor.** `vercel.json` fixa
+  `regions: ["gru1"]` (São Paulo); sem isso a Vercel usa `iad1` (Washington). Banco em `sa-east-1`.
+  Não remover nem adicionar chave de comentário (`//` quebra o schema da Vercel). Racional, limites
+  (jurisdição ≠ geografia) e plano de saída: [docs/ADR_INFRAESTRUTURA.md](docs/ADR_INFRAESTRUTURA.md).
+- **Sem telemetria de terceiro.** Métrica de visitas é a própria (migration 17), agregada e sem
+  dado pessoal. Não reintroduzir `@vercel/analytics` nem equivalente.
 
 ## Migrations
 `supabase/migrations/` (01→08), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
