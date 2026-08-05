@@ -12,7 +12,10 @@ export type Evento = (typeof EVENTOS)[number];
 // querystring, hash ou rota inventada virem linha na tabela.
 // "/catalogo/detalhe" é rótulo ESTÁVEL da ficha (/catalogo/[id]) — agregamos todas as fichas
 // numa linha só, sem explodir a cardinalidade por uuid.
-export const ROTAS_MEDIDAS = ["/", "/catalogo", "/catalogo/detalhe", "/fundacao", "/fundacao/detalhe"] as const;
+export const ROTAS_MEDIDAS = [
+  "/", "/catalogo", "/catalogo/detalhe", "/fundacao", "/fundacao/detalhe",
+  "/judiciario", "/judiciario/detalhe",
+] as const;
 export type RotaMedida = (typeof ROTAS_MEDIDAS)[number];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

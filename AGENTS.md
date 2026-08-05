@@ -42,6 +42,14 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   (jurisdição ≠ geografia) e plano de saída: [docs/ADR_INFRAESTRUTURA.md](docs/ADR_INFRAESTRUTURA.md).
 - **Sem telemetria de terceiro.** Métrica de visitas é a própria (migration 17), agregada e sem
   dado pessoal. Não reintroduzir `@vercel/analytics` nem equivalente.
+- **Dado de terceiro não entra no nosso Postgres.** O Sinapses (CNJ) é **federado em runtime**
+  (`/judiciario`), somente leitura, com degradação graciosa obrigatória — a página nunca quebra se a
+  origem cair. Única exceção à postura "sem API externa em runtime" (`lib/geo/brasil.ts`), delimitada
+  em [docs/ADR_FEDERACAO_SINAPSES.md](docs/ADR_FEDERACAO_SINAPSES.md): só dado público, só leitura,
+  nunca em escrita/autenticação, sem chave de API.
+  ⚠ As páginas de `/judiciario` **não podem** exportar `dynamic = "force-dynamic"`: no Next isso
+  equivale a `no-store, revalidate: 0` em todo fetch da rota e viraria uma consulta ao CNJ por
+  visitante. `tests/sinapses.test.ts` guarda isso; a rota aparecer como `ƒ` no build é esperado.
 
 ## Migrations
 `supabase/migrations/` (01→08), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de

@@ -106,6 +106,12 @@ recebe zero linhas. Nada é concedido a `anon` além do `registrar_acesso` que j
 3. **Interoperar com o cofre JSONB da LIIA (Payload):** ficamos achatados. Se o Sinapses exigir 1:1,
    faz-se um adaptador na importação — não muda este schema.
 
+> **Superado em 05/08/2026 no ponto do Sinapses:** decidimos **federar em runtime** (vitrine
+> `/judiciario`, somente leitura, nada no nosso Postgres) em vez de importar em massa. Ver
+> [ADR_FEDERACAO_SINAPSES.md](ADR_FEDERACAO_SINAPSES.md). O resto deste documento continua valendo —
+> mas note que o argumento da "importação em massa" usado acima para não pôr a cascata de risco no
+> CHECK perde força, e essa decisão precisa ser reavaliada pelo próprio mérito.
+
 ## Verificação (após aprovação)
 1. `npm test` — anti-drift verde (inclui `interesse` e `transferencia_internacional`).
 2. `npm run build` — sem erros de tipo nas telas novas.

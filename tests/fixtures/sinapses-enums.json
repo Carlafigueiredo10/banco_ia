@@ -1,0 +1,45 @@
+{
+  "_comentario": "Fixture sanitizada de GET /publico/v1/enums/projetos. Forma REAL observada na API (05/08/2026): mapa campo -> [{value,label}]. As outras duas formas que normalizarEnums tolera ({codigo: rotulo} e {valor,rotulo}) são construídas inline no teste — não precisam de fixture.",
+  "situacao_atual": [
+    { "value": "ideacao_concepcao", "label": "Ideação/Concepção" },
+    { "value": "em_desenvolvimento", "label": "Em desenvolvimento" },
+    { "value": "piloto_testes", "label": "Piloto/Testes" },
+    { "value": "em_producao_uso_regular", "label": "Em produção/uso regular" },
+    { "value": "suspenso", "label": "Suspenso" },
+    { "value": "descontinuado", "label": "Descontinuado" }
+  ],
+  "tipo_inteligencia_artificial": [
+    { "value": "ia_preditiva_analitica", "label": "IA Preditiva/Analítica" },
+    { "value": "ia_generativa", "label": "IA Generativa" },
+    { "value": "ambas_preditiva_e_generativa", "label": "Ambas (preditiva e generativa)" },
+    { "value": "outro_tipo", "label": "Outro tipo" }
+  ],
+  "foco_atuacao": [
+    { "value": "grupo_1_atividades_meio", "label": "Grupo 1 — Atividades-meio" },
+    { "value": "grupo_2_automacao_fluxos", "label": "Grupo 2 — Automação de fluxos" },
+    { "value": "grupo_3_apoio_jurisdicional", "label": "Grupo 3 — Apoio jurisdicional" },
+    { "value": "grupo_7_outros", "label": "Grupo 7 — Outros" }
+  ],
+  "classificacao_risco": [
+    { "value": "alto_risco", "label": "Alto risco" },
+    { "value": "baixo_risco", "label": "Baixo risco" },
+    { "value": "ainda_nao_avaliado", "label": "Ainda não avaliado" },
+    { "value": "desconheco_classificacao", "label": "Desconheço a classificação" }
+  ],
+  "tarefas_problemas_alvo": [
+    { "value": "sumarizacao_de_textos_documentos", "label": "Sumarização de textos/documentos" },
+    { "value": "triagem_processual_distribuicao", "label": "Triagem processual/distribuição" },
+    { "value": "classificacao_de_processos", "label": "Classificação de processos" },
+    { "value": "atendimento_ao_publico_chatbot", "label": "Atendimento ao público (chatbot)" }
+  ],
+  "publico_alvo_principal": [
+    { "value": "magistrados", "label": "Magistrados" },
+    { "value": "servidores_do_tribunal", "label": "Servidores do tribunal" },
+    { "value": "jurisdicionados_cidadaos", "label": "Jurisdicionados/cidadãos" }
+  ],
+  "principais_objetivos": [
+    { "value": "aumentar_celeridade_processual", "label": "Aumentar celeridade processual" },
+    { "value": "automatizar_tarefas_repetitivas", "label": "Automatizar tarefas repetitivas" },
+    { "value": "melhorar_qualidade_das_decisoes", "label": "Melhorar qualidade das decisões" }
+  ]
+}
