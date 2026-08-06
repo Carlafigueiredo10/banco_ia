@@ -6,7 +6,8 @@ import {
   NIVEL_GOVERNO, UFS, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO,
   STATUS_MATURACAO, ESTAGIO,
-  FUNDACAO_TIPO, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
+  FUNDACAO_TIPO, FUNDACAO_ESFORCO, FUNDACAO_SOBERANIA, FUNDACAO_ESFORCO_PUBLICO,
+  STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, TRANSFERENCIA_INTERNACIONAL,
 } from "../lib/enums";
 import { EVENTOS } from "../lib/metrica";
@@ -29,15 +30,16 @@ function valoresSql11(col: string): string[] {
   if (!m) throw new Error(`CHECK não encontrado para ${col} em 11_*`);
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
-// Migration 13 recriou o CHECK de fundacao.tipo com 3 valores (repo|fonte_dados|software).
-const schema13 = readFileSync(
-  resolve(__dirname, "../supabase/migrations/13_fundacao_software.sql"),
+// Migration 19 recriou o CHECK de fundacao.tipo com 4 valores (+'referencia') e criou os
+// CHECK de fundacao.esforco e fundacao.soberania. É a versão vigente — a 13 ficou histórica.
+const schema19 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/19_fundacao_esforco.sql"),
   "utf8"
 );
-function valoresSql13(col: string): string[] {
+function valoresSql19(col: string): string[] {
   const re = new RegExp(`${col} in \\(([^)]*)\\)`);
-  const m = schema13.match(re);
-  if (!m) throw new Error(`CHECK não encontrado para ${col} em 13_*`);
+  const m = schema19.match(re);
+  if (!m) throw new Error(`CHECK não encontrado para ${col} em 19_*`);
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
 // Migration 16 recriou o CHECK de catalogo_solucoes.bloco com +'internacional'.
@@ -128,8 +130,19 @@ describe("anti-drift: enums das vitrines (item 5/7) TS ↔ CHECK do SQL (migrati
   it("modalidades: códigos batem (array <@)", () => {
     expect(new Set(codes(MODALIDADES))).toEqual(new Set(valoresSqlArray11("modalidades")));
   });
-  it("fundacao.tipo: códigos batem (migration 13, com 'software')", () => {
-    expect(new Set(codes(FUNDACAO_TIPO))).toEqual(new Set(valoresSql13("tipo")));
+  it("fundacao.tipo: códigos batem (migration 19, com 'referencia')", () => {
+    expect(new Set(codes(FUNDACAO_TIPO))).toEqual(new Set(valoresSql19("tipo")));
+  });
+  it("fundacao.esforco: códigos batem (migration 19)", () => {
+    expect(new Set(codes(FUNDACAO_ESFORCO))).toEqual(new Set(valoresSql19("esforco")));
+  });
+  it("fundacao.soberania: códigos batem (migration 19, mesmos valores do catálogo)", () => {
+    expect(new Set(codes(FUNDACAO_SOBERANIA))).toEqual(new Set(valoresSql19("soberania")));
+  });
+  it("fundacao: todo esforco tem texto de público (vitrine não fica com seção muda)", () => {
+    for (const o of FUNDACAO_ESFORCO) {
+      expect(FUNDACAO_ESFORCO_PUBLICO[o.value], `falta público de ${o.value}`).toBeTruthy();
+    }
   });
   it("catalogo.bloco: códigos batem (migration 16, com 'internacional')", () => {
     expect(new Set(codes(BLOCO_ORIGEM))).toEqual(new Set(valoresSql16("bloco")));

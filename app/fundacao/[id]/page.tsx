@@ -5,15 +5,9 @@ import RegistraVisita from "@/components/metrica/RegistraVisita";
 import LinkExterno from "@/components/metrica/LinkExterno";
 import { createSupabaseAnonClient } from "@/lib/supabase/anon";
 import { Secao, formatarData, type CampoT } from "@/components/ui/Ficha";
+import { FUNDACAO_TIPO, FUNDACAO_ESFORCO, FUNDACAO_SOBERANIA, labelOf } from "@/lib/enums";
 
 export const dynamic = "force-dynamic";
-
-// Rótulo humano dos 3 tipos (vocabulário controlado por CHECK). Bases novas não dependem disto.
-const TIPO_LABEL: Record<string, string> = {
-  repo: "Repositório open-source",
-  fonte_dados: "API / base de dados",
-  software: "Software público",
-};
 
 type Row = Record<string, string | number | null>;
 
@@ -22,7 +16,7 @@ export default async function FichaBasePage({ params }: { params: Promise<{ id: 
   const supabase = createSupabaseAnonClient();
   const { data } = await supabase
     .from("fundacao")
-    .select("id, tipo, nome, descricao, url, orgao, categoria, licenca, stack, tipo_dado, verificado_em")
+    .select("id, tipo, nome, descricao, url, orgao, categoria, licenca, stack, tipo_dado, verificado_em, esforco, soberania, ressalva")
     .eq("id", id)
     .eq("publicado", true) // RLS já restringe; explícito reforça
     .maybeSingle();
@@ -34,8 +28,10 @@ export default async function FichaBasePage({ params }: { params: Promise<{ id: 
   const ehRepo = r.tipo === "repo" || r.tipo === "software";
 
   const ficha: CampoT[] = [
-    { rotulo: "Tipo", valor: TIPO_LABEL[r.tipo as string] ?? s(r.tipo) },
+    { rotulo: "Tipo", valor: labelOf(FUNDACAO_TIPO, s(r.tipo)) },
+    { rotulo: "Para aproveitar", valor: r.esforco ? labelOf(FUNDACAO_ESFORCO, s(r.esforco)) : null },
     { rotulo: "Categoria", valor: s(r.categoria) },
+    { rotulo: "Soberania", valor: r.soberania ? labelOf(FUNDACAO_SOBERANIA, s(r.soberania)) : null },
     { rotulo: "Licença", valor: ehRepo ? s(r.licenca) : null },
     { rotulo: "Stack / tecnologia", valor: ehRepo ? s(r.stack) : null },
     { rotulo: "Tipo de dado", valor: r.tipo === "fonte_dados" ? s(r.tipo_dado) : null },
@@ -50,7 +46,7 @@ export default async function FichaBasePage({ params }: { params: Promise<{ id: 
         <Link href="/fundacao" style={{ color: "var(--bbsia-azul)", fontSize: ".9rem" }}>← Voltar às bases</Link>
 
         <div style={{ fontSize: ".72rem", fontWeight: 700, letterSpacing: ".04em", color: "#777", textTransform: "uppercase", marginTop: 12 }}>
-          {TIPO_LABEL[r.tipo as string] ?? "Base reutilizável"}
+          {labelOf(FUNDACAO_TIPO, s(r.tipo))}
         </div>
         <p style={{ fontSize: ".72rem", color: "#999", margin: "8px 0 2px" }}>Base reutilizável · Ficha</p>
         <h1 style={{ fontSize: "1.9rem", color: "var(--bbsia-azul)", margin: "0 0 4px", lineHeight: 1.15 }}>{r.nome}</h1>
@@ -62,6 +58,17 @@ export default async function FichaBasePage({ params }: { params: Promise<{ id: 
               style={{ color: "var(--bbsia-azul)", fontWeight: 600, fontSize: ".95rem" }}>
               Acessar ↗
             </LinkExterno>
+          </div>
+        )}
+
+        {/* Ressalva antes da descrição, de propósito: quem lê só o começo tem que ver o alerta.
+            Só existe na ficha — no card, fora de contexto, viraria selo de suspeita. */}
+        {r.ressalva && (
+          <div role="note" style={{ background: "#fef8e7", border: "1px solid #f0d68a", borderLeft: "4px solid #c78a00", borderRadius: 6, padding: "12px 16px", maxWidth: 760, margin: "16px 0 8px" }}>
+            <strong style={{ display: "block", fontSize: ".8rem", textTransform: "uppercase", letterSpacing: ".03em", color: "#7a5600", marginBottom: 4 }}>
+              Atenção antes de adotar
+            </strong>
+            <p style={{ margin: 0, fontSize: ".95rem", color: "#4a3600", lineHeight: 1.5 }}>{r.ressalva}</p>
           </div>
         )}
 

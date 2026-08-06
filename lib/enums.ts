@@ -146,12 +146,30 @@ export const STATUS_MATURACAO: Opcao[] = [
 // Espelham os CHECK de supabase/migrations/11_vitrines_fundacao_catalogo.sql (anti-drift).
 // =====================================================================================
 
-// Fundação (item 5) — tipo de entidade de base
+// Fundação (item 5) — tipo de entidade de base. Espelha o CHECK da migration 19.
 export const FUNDACAO_TIPO: Opcao[] = [
   { value: "repo", label: "Repositório open-source" },
   { value: "fonte_dados", label: "API / base de dados" },
   { value: "software", label: "Software / sistema público" },
+  { value: "referencia", label: "Referência (norma, padrão ou guia)" },
 ];
+
+// Fundação — esforço de adoção. Eixo de PÚBLICO, ortogonal ao `tipo`: responde "isso serve
+// pra mim?" em vez de "que coisa é isso?". Rótulos em 1ª pessoa do leitor, de propósito.
+export const FUNDACAO_ESFORCO: Opcao[] = [
+  { value: "instalar", label: "Instalar e usar" },
+  { value: "conectar", label: "Conectar ao meu sistema" },
+  { value: "desenvolver", label: "Pra quem desenvolve" },
+  { value: "estudar", label: "Estudar antes de decidir" },
+];
+
+// Quem é atendido por cada faixa — subtítulo da seção na vitrine pública.
+export const FUNDACAO_ESFORCO_PUBLICO: Record<string, string> = {
+  instalar: "Para o órgão que tem a necessidade e não tem equipe de desenvolvimento.",
+  conectar: "Para quem tem TI e quer consumir dado ou serviço já existente.",
+  desenvolver: "Para quem tem equipe e vai construir sobre estas bases.",
+  estudar: "Para quem ainda vai decidir — inclusive se contrata ou não.",
+};
 
 // Catálogo (item 7) — ciclo de vida LIIA
 export const STATUS_SOLUCAO: Opcao[] = [
@@ -198,6 +216,10 @@ export const SOBERANIA_CATALOGO: Opcao[] = [
 // SOBERANIA_CATALOGO (o padrão LIIA usa esses valores em soberania_dados.hospedagem_inferencia).
 // Reuso justificado: os valores respondem diretamente à pergunta de hospedagem.
 export const HOSPEDAGEM_INFERENCIA: Opcao[] = SOBERANIA_CATALOGO;
+
+// Fundação — soberania da base ("de quem depende quem adotar isto?"). Mesmo conjunto do
+// catálogo (migration 19 replica os 4 valores). Reuso justificado: a pergunta é a mesma.
+export const FUNDACAO_SOBERANIA: Opcao[] = SOBERANIA_CATALOGO;
 
 // Model card — transferência internacional de dados. Vocabulário CONTROLADO (não booleano):
 // 'nao_informado' e 'parcial' são estados de curadoria que um boolean não expressa.

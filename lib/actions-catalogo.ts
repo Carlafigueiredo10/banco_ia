@@ -6,6 +6,7 @@ import { getAdmin } from "./auth-guard";
 import {
   codes, AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, HOSPEDAGEM_INFERENCIA, TRANSFERENCIA_INTERNACIONAL,
+  FUNDACAO_TIPO, FUNDACAO_ESFORCO, FUNDACAO_SOBERANIA,
 } from "./enums";
 
 // Helpers de parsing de formulário
@@ -122,7 +123,9 @@ export async function criarFundacao(formData: FormData) {
   const nome = String(formData.get("nome") ?? "").trim();
   const url = String(formData.get("url") ?? "").trim();
   const base = "/admin/fundacao/novo";
-  if (tipo !== "repo" && tipo !== "fonte_dados") redirect(`${base}?erro=tipo`);
+  // Valida contra o enum, não contra literais: a lista hardcoded ficou para trás quando a
+  // migration 13 acrescentou 'software' e travou o cadastro desse tipo pelo admin.
+  if (!codes(FUNDACAO_TIPO).includes(tipo)) redirect(`${base}?erro=tipo`);
   if (!nome || !url) redirect(`${base}?erro=obrig`);
 
   const publicar = formData.get("publicar") === "on";
@@ -136,6 +139,9 @@ export async function criarFundacao(formData: FormData) {
     licenca: String(formData.get("licenca") ?? "").trim() || null,
     stack: String(formData.get("stack") ?? "").trim() || null,
     tipo_dado: String(formData.get("tipo_dado") ?? "").trim() || null,
+    esforco: opcional(formData, "esforco", codes(FUNDACAO_ESFORCO)),
+    soberania: opcional(formData, "soberania", codes(FUNDACAO_SOBERANIA)),
+    ressalva: txt(formData, "ressalva", 1000),
     publicado: publicar,
     verificado_em: new Date().toISOString(), // admin cadastrou conferindo o link
     fonte: "cadastro manual",
@@ -205,7 +211,7 @@ export async function editarFundacao(formData: FormData) {
   const tipo = String(formData.get("tipo") ?? "").trim();
   const nome = String(formData.get("nome") ?? "").trim();
   const url = String(formData.get("url") ?? "").trim();
-  if (tipo !== "repo" && tipo !== "fonte_dados") redirect(`${base}?erro=tipo`);
+  if (!codes(FUNDACAO_TIPO).includes(tipo)) redirect(`${base}?erro=tipo`);
   if (!nome || !url) redirect(`${base}?erro=obrig`);
 
   const { error } = await admin.supabase.from("fundacao").update({
@@ -216,6 +222,9 @@ export async function editarFundacao(formData: FormData) {
     licenca: String(formData.get("licenca") ?? "").trim() || null,
     stack: String(formData.get("stack") ?? "").trim() || null,
     tipo_dado: String(formData.get("tipo_dado") ?? "").trim() || null,
+    esforco: opcional(formData, "esforco", codes(FUNDACAO_ESFORCO)),
+    soberania: opcional(formData, "soberania", codes(FUNDACAO_SOBERANIA)),
+    ressalva: txt(formData, "ressalva", 1000),
   }).eq("id", id);
   if (error) redirect(`${base}?erro=salvar`);
 

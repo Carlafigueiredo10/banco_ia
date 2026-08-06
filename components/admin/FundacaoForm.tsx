@@ -1,4 +1,4 @@
-import { FUNDACAO_TIPO } from "@/lib/enums";
+import { FUNDACAO_TIPO, FUNDACAO_ESFORCO, FUNDACAO_SOBERANIA, FUNDACAO_ESFORCO_PUBLICO } from "@/lib/enums";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Reg = Record<string, any>;
@@ -20,6 +20,14 @@ export default function FundacaoForm({
           {FUNDACAO_TIPO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </label>
+      {/* Eixo de público — é o filtro principal da vitrine. Sem ele o item só aparece em
+          "Todas", então o formulário exige a escolha mesmo com a coluna nullable no banco. */}
+      <label style={lbl}>O que a pessoa precisa fazer? *
+        <select name="esforco" defaultValue={d.esforco ?? "instalar"} style={ctrl}>
+          {FUNDACAO_ESFORCO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <span style={ajuda}>{FUNDACAO_ESFORCO_PUBLICO[d.esforco ?? "instalar"]}</span>
+      </label>
       <T nome="nome" rotulo="Nome *" def={d.nome} />
       <T nome="url" rotulo="URL *" def={d.url} placeholder="https://…" />
       <A nome="descricao" rotulo="Descrição" def={d.descricao} />
@@ -27,6 +35,19 @@ export default function FundacaoForm({
         <T nome="orgao" rotulo="Órgão / autor" def={d.orgao} />
         <T nome="categoria" rotulo="Categoria" def={d.categoria} />
       </div>
+      <label style={lbl}>Soberania
+        <select name="soberania" defaultValue={d.soberania ?? ""} style={ctrl}>
+          <option value="">— não informado —</option>
+          {FUNDACAO_SOBERANIA.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </label>
+      <label style={lbl}>Ressalva (aparece como alerta na ficha pública)
+        <textarea name="ressalva" defaultValue={d.ressalva ?? ""} rows={2} maxLength={1000} style={ctrl}
+          placeholder="Ex.: exige ~100 GB de RAM; licença divergente entre README e painel…" />
+        <span style={ajuda}>
+          Preencha sempre que adotar a base exigir um aviso. Sem ressalva, publicar equivale a recomendar.
+        </span>
+      </label>
 
       <fieldset style={fs}>
         <legend style={leg}>Se for repositório ou software/sistema</legend>
@@ -62,6 +83,7 @@ function A({ nome, rotulo, def }: { nome: string; rotulo: string; def?: string }
 const grid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 };
 const lbl: React.CSSProperties = { display: "block", fontSize: ".85rem", fontWeight: 600, marginBottom: 12 };
 const ctrl: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #999", borderRadius: 4, fontFamily: "inherit", fontSize: ".9rem", marginTop: 4, fontWeight: 400 };
-const fs: React.CSSProperties = { border: "1px solid #dde3ee", borderRadius: 8, padding: "8px 14px 0", margin: "0 0 12px" };
+const ajuda: React.CSSProperties = { display: "block", fontWeight: 400, fontSize: ".78rem", color: "#666", marginTop: 4 };
+const fs: React.CSSProperties ={ border: "1px solid #dde3ee", borderRadius: 8, padding: "8px 14px 0", margin: "0 0 12px" };
 const leg: React.CSSProperties = { fontSize: ".8rem", color: "#777", padding: "0 6px" };
 const btn: React.CSSProperties = { background: "#1351b4", color: "#fff", border: "none", borderRadius: 16, padding: "10px 22px", cursor: "pointer", fontWeight: 700 };

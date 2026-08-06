@@ -5,7 +5,7 @@ import FundacaoForm from "@/components/admin/FundacaoForm";
 export const dynamic = "force-dynamic";
 
 const ERROS: Record<string, string> = {
-  tipo: "Escolha o tipo (repositório ou API/base).",
+  tipo: "Escolha um tipo válido.",
   obrig: "Nome e URL são obrigatórios.",
   salvar: "Não foi possível salvar.",
 };
@@ -21,7 +21,7 @@ export default async function NovaFundacaoPage({
       <Link href="/admin/fundacao" style={{ color: "#1351b4" }}>← Voltar às Bases</Link>
       <h1 style={{ fontSize: "1.5rem", margin: "8px 0 4px" }}>Nova entrada nas Bases reutilizáveis</h1>
       <p style={{ color: "#666", marginTop: 0 }}>
-        Cadastre um <strong>repositório open-source</strong> ou uma <strong>API/base de dados</strong>.
+        Repositório, API/base de dados, software público ou referência (norma, padrão, guia).
       </p>
       {sp.erro && <Banner>{ERROS[sp.erro] ?? "Erro."}</Banner>}
       <FundacaoForm action={criarFundacao} modo="novo" />
