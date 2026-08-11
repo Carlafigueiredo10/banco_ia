@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { createSupabaseAnonClient } from "@/lib/supabase/anon";
+import { checkRateLimit, getClientIp } from "@/lib/ratelimit";
 
 // Envio do Radar semanal por e-mail. Chamado pela rotina (cron na nuvem) via HTTPS,
 // porque o SMTP direto do sandbox da rotina é bloqueado. A senha de app do Gmail fica
@@ -16,9 +19,27 @@ export const dynamic = "force-dynamic";
 
 const DESTINATARIOS = ["carlacristinesoares@gmail.com", "eunice.liu@enap.gov.br"];
 
+// Comparação de segredo em tempo constante (achado M-10).
+// `!==` em string faz curto-circuito no primeiro byte divergente. Comparamos os HASHES, não os
+// valores: timingSafeEqual exige buffers do mesmo tamanho, e passar os segredos crus vazaria o
+// COMPRIMENTO do segredo (ou lançaria, virando um oráculo por si só). SHA-256 normaliza em 32 B.
+function segredoConfere(recebido: string | null): boolean {
+  const esperado = process.env.RADAR_SECRET;
+  if (!esperado || !recebido) return false;
+  const h = (s: string) => createHash("sha256").update(s).digest();
+  return timingSafeEqual(h(recebido), h(esperado));
+}
+
 export async function POST(req: Request) {
-  const secret = req.headers.get("x-radar-secret");
-  if (!process.env.RADAR_SECRET || secret !== process.env.RADAR_SECRET) {
+  // Rate limit ANTES da checagem do segredo: sem isto, brute-force online é viável e silencioso
+  // (o ataque não é o timing — é a tentativa repetida sem nenhum teto nem registro).
+  const supabase = createSupabaseAnonClient();
+  const ip = getClientIp(req.headers);
+  if (!(await checkRateLimit(supabase, `radar:${ip}`))) {
+    return NextResponse.json({ erro: "Muitas tentativas." }, { status: 429 });
+  }
+
+  if (!segredoConfere(req.headers.get("x-radar-secret"))) {
     return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
   }
 
@@ -57,9 +78,9 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ ok: true, enviado_para: DESTINATARIOS, id: info.messageId });
   } catch (e) {
-    return NextResponse.json(
-      { erro: "Falha no envio.", detalhe: (e as Error).message },
-      { status: 502 }
-    );
+    // NÃO devolver e.message: em falha de autenticação SMTP o nodemailer repassa a resposta crua
+    // do Gmail, que traz o endereço do remetente e códigos internos. Fica no log do servidor.
+    console.error("radar-email: falha no envio", (e as Error).message);
+    return NextResponse.json({ erro: "Falha no envio." }, { status: 502 });
   }
 }
