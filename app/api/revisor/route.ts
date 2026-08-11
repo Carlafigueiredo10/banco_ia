@@ -46,6 +46,9 @@ export async function POST(req: Request) {
     consentimento_em: new Date().toISOString(),
   });
 
+  // ⚠ NÃO acrescente .select() aqui. O anon tem grant de INSERT em 11 colunas e NENHUM de
+  // SELECT (migration 22). Sem .select(), supabase-js manda Prefer: return=minimal — sem
+  // RETURNING, sem exigir SELECT. Com .select(), esta rota passa a devolver 403 em produção.
   const { error } = await supabase.from("revisores").insert(registro);
 
   if (error) {
