@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { destinoSeguro } from "@/lib/auth-redirect";
+
+// Fluxos de e-mail que este projeto realmente usa. `verifyOtp` aceita bem mais que isto
+// (recovery, email_change…), e o valor chega cru da query string — não há motivo para repassar
+// qualquer string para a API de auth. Não usamos resetPasswordForEmail em lugar nenhum, então
+// `recovery` fica de fora de propósito: se um dia entrar, entra aqui junto com o template.
+const TIPOS_VALIDOS = new Set<EmailOtpType>(["invite", "magiclink", "signup"]);
+
+function tipoValido(bruto: string | null): EmailOtpType | null {
+  // O cast só acontece DEPOIS da allowlist — validar e então estreitar, nunca `as any` antes.
+  return bruto && TIPOS_VALIDOS.has(bruto as EmailOtpType) ? (bruto as EmailOtpType) : null;
+}
 
 // Troca o link mágico por sessão, verifica admin, registra login e redireciona.
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type");
+  const type = tipoValido(url.searchParams.get("type"));
   // `next` passa por allowlist literal (achado A-2 — open redirect). O antigo fallback para
   // `?redirect=` foi removido: ninguém o produzia no fluxo real (o middleware o escrevia na URL
   // de /admin/login, que nunca o repassava para cá), então a única fonte era um atacante.
@@ -20,11 +32,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     ok = !error;
   } else if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      type: type as any,
-      token_hash: tokenHash,
-    });
+    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
     ok = !error;
   }
 

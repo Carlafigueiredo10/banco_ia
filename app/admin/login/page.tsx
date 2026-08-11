@@ -43,8 +43,11 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  // Primeiro acesso / esqueci a senha: manda um link que cria a conta (se preciso)
-  // e leva direto para definir a senha. Depois disso, é só senha.
+  // Recuperação de senha para quem JÁ TEM CONTA. Não cria conta (achado A-3): antes,
+  // `shouldCreateUser: true` fazia deste botão o único caminho de criação de usuário no sistema
+  // inteiro — e ele é público, então qualquer pessoa do mundo obtinha o papel `authenticated`.
+  // Conta nova agora é convite em dois passos: linha em `public.admins` (auditada, pelo painel)
+  // + Invite no dashboard do Supabase.
   async function definirSenha() {
     if (!email.trim()) {
       setErro("Digite seu e-mail primeiro.");
@@ -53,18 +56,22 @@ export default function LoginPage() {
     setEstado("enviando_link");
     setErro("");
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithOtp({
+    // TODO(A-3, depende do painel): quando os templates de e-mail passarem a usar
+    // `{{ .SiteURL }}/auth/callback?token_hash=...`, REMOVER o `emailRedirectTo` daqui — ele
+    // alimenta `{{ .RedirectTo }}`, que deixará de ser usado. Não remover antes: o template
+    // atual usa `{{ .ConfirmationURL }}`, cujo redirect_to vem deste valor; sem ele o link cai
+    // no Site URL em vez de /auth/callback e o login das admins quebra.
+    await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        shouldCreateUser: true,
+        shouldCreateUser: false,
         emailRedirectTo: `${window.location.origin}/auth/callback?next=/admin/definir-senha`,
       },
     });
-    if (error) {
-      setEstado("idle");
-      setErro("Não foi possível enviar o link. Tente novamente.");
-      return;
-    }
+    // Resposta SEMPRE genérica, com ou sem erro. Com `shouldCreateUser: false` o Supabase
+    // responde 400 para e-mail desconhecido; exibir isso transformaria a tela num oráculo de
+    // "esta pessoa é admin?". Também não logamos o erro no console do navegador — não há ganho
+    // operacional em deixar mensagem interna do Auth no cliente.
     setEstado("link_enviado");
   }
 
@@ -75,8 +82,13 @@ export default function LoginPage() {
 
       {estado === "link_enviado" ? (
         <div role="status" style={{ background: "#eafaef", border: "1px solid #b6e3c6", borderRadius: 6, padding: 16 }}>
-          📬 Enviamos um link para <strong>{email}</strong>. Abra o e-mail, clique no link e você poderá
-          <strong> definir sua senha</strong>. Depois é só entrar com e-mail e senha.
+          📬 Se <strong>{email}</strong> tiver acesso à coordenação, enviamos um link para
+          <strong> definir a senha</strong>. Abra o e-mail e clique no link; depois é só entrar com
+          e-mail e senha.
+          <p style={{ fontSize: ".82rem", color: "#3d6b4d", marginTop: 10, marginBottom: 0 }}>
+            Não recebeu? O acesso é só para quem já foi cadastrado pela coordenação — o cadastro
+            não é aberto.
+          </p>
         </div>
       ) : (
         <form onSubmit={entrar} noValidate>
