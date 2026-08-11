@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="BBSIA">
+  <!-- Marca do BBSIA vetorizada a partir de bbsia.PNG (265x184): as medidas abaixo são
+       as do original reescaladas por 28/228, com a composição centrada no quadrado. -->
+  <defs>
+    <linearGradient id="f" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#356CAF"/>
+      <stop offset="1" stop-color="#019480"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="6" fill="url(#f)"/>
+  <rect x="2" y="7" width="6.14" height="18.05" fill="#4AAA47"/>
+  <path d="M19.26 7.37 L30 25.05 L8.51 25.05 Z" fill="#F6BB15"/>
+  <path d="M12.51 25.05 A6.75 6.75 0 0 1 26.01 25.05 Z" fill="#4AAA47"/>
+</svg>
