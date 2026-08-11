@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { destinoSeguro } from "@/lib/auth-redirect";
 
 // Troca o link mágico por sessão, verifica admin, registra login e redireciona.
 export async function GET(request: Request) {
@@ -7,8 +8,10 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
-  // `next` (ex.: definir senha no 1º acesso) tem prioridade sobre `redirect`.
-  const destino = url.searchParams.get("next") ?? url.searchParams.get("redirect") ?? "/admin";
+  // `next` passa por allowlist literal (achado A-2 — open redirect). O antigo fallback para
+  // `?redirect=` foi removido: ninguém o produzia no fluxo real (o middleware o escrevia na URL
+  // de /admin/login, que nunca o repassava para cá), então a única fonte era um atacante.
+  const destino = destinoSeguro(url.searchParams.get("next"));
 
   const supabase = await createSupabaseServerClient();
 

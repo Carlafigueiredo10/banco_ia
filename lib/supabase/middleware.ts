@@ -40,7 +40,10 @@ export async function updateSession(request: NextRequest) {
   if (isAdminArea && !isPublicoAdmin && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
-    url.searchParams.set("redirect", path);
+    // Sem `?redirect=`: a tela de login nunca leu esse parâmetro, então ele não fazia o retorno
+    // à página pretendida — só criava a ilusão de que fazia, e alimentava o open redirect do
+    // /auth/callback (achado A-2). Se um dia o retorno-à-página for implementado de verdade,
+    // o destino tem que passar por destinoSeguro() em lib/auth-redirect.ts.
     return NextResponse.redirect(url);
   }
 
