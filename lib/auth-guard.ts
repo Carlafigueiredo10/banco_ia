@@ -29,10 +29,28 @@ export async function getAdmin(): Promise<AdminContext | null> {
   return { email: user.email, supabase };
 }
 
+// Ações registráveis na trilha. ANTI-DRIFT: espelha o CHECK `auditoria_acao_check` da
+// migration 23. Este enum NÃO está em lib/enums.ts porque não é vocabulário de UI — se um dia
+// virar, mover para lá e cobrir em tests/drift.test.ts como os demais.
+export type AcaoAuditoria =
+  // acesso e conta
+  | "login"
+  | "convite_admin"
+  | "revogacao_admin"
+  // dado do titular
+  | "export_csv"
+  | "anonimizacao"
+  // curadoria (M-8)
+  | "curadoria"
+  | "publicacao"
+  | "cadastro"
+  | "edicao"
+  | "promocao";
+
 // Registra uma ação na trilha de auditoria imutável.
 export async function registrarAuditoria(
   ctx: AdminContext,
-  acao: "login" | "convite_admin" | "export_csv" | "anonimizacao",
+  acao: AcaoAuditoria,
   detalhe?: Record<string, unknown>
 ): Promise<void> {
   await ctx.supabase.from("auditoria").insert({

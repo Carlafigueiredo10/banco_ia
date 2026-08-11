@@ -1,9 +1,16 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { convidarAdmin } from "@/lib/actions";
+import { convidarAdmin, revogarAdmin } from "@/lib/actions";
 
 const ERROS: Record<string, string> = {
   email: "Informe um e-mail válido.",
-  salvar: "Não foi possível convidar (talvez já seja admin).",
+  salvar: "Não foi possível concluir a operação.",
+  auto: "Você não pode revogar o próprio acesso — ficaria sem caminho de volta pelo painel.",
+};
+
+const OKS: Record<string, string> = {
+  "1": "Convite registrado.",
+  revogado: "Acesso revogado. O efeito é imediato em todas as telas e exports.",
+  reativado: "Acesso reativado.",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,7 +30,7 @@ export default async function AdminsPage({
     <>
       <h1 style={{ fontSize: "1.5rem", marginBottom: 16 }}>Administradores</h1>
 
-      {sp.ok && <p role="alert" style={banner("ok")}>Convite registrado.</p>}
+      {sp.ok && <p role="alert" style={banner("ok")}>{OKS[sp.ok] ?? "Feito."}</p>}
       {sp.erro && <p role="alert" style={banner("erro")}>{ERROS[sp.erro] ?? "Erro."}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 28, alignItems: "start" }}>
@@ -33,25 +40,62 @@ export default async function AdminsPage({
               <th style={{ padding: "8px 10px" }}>E-mail</th>
               <th style={{ padding: "8px 10px" }}>Convidado por</th>
               <th style={{ padding: "8px 10px" }}>Desde</th>
+              <th style={{ padding: "8px 10px" }}>Situação</th>
+              <th style={{ padding: "8px 10px" }}>Acesso</th>
             </tr>
           </thead>
           <tbody>
-            {admins.map((a) => (
-              <tr key={a.email} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: "8px 10px" }}>{a.email}</td>
-                <td style={{ padding: "8px 10px" }}>{a.convidado_por ?? "—"}</td>
-                <td style={{ padding: "8px 10px" }}>
-                  {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "—"}
-                </td>
-              </tr>
-            ))}
+            {admins.map((a) => {
+              const revogado = Boolean(a.revogado_em);
+              return (
+                <tr key={a.email} style={{ borderBottom: "1px solid #eee", opacity: revogado ? 0.6 : 1 }}>
+                  <td style={{ padding: "8px 10px" }}>{a.email}</td>
+                  <td style={{ padding: "8px 10px" }}>{a.convidado_por ?? "—"}</td>
+                  <td style={{ padding: "8px 10px" }}>
+                    {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "—"}
+                  </td>
+                  <td style={{ padding: "8px 10px" }}>
+                    {revogado ? (
+                      <span title={`Revogado por ${a.revogado_por ?? "—"}`} style={chip("#fdecea", "#721c24")}>
+                        Revogado em {new Date(a.revogado_em).toLocaleDateString("pt-BR")}
+                      </span>
+                    ) : (
+                      <span style={chip("#eafaef", "#155724")}>Ativo</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "8px 10px" }}>
+                    <form action={revogarAdmin}>
+                      <input type="hidden" name="email" value={a.email} />
+                      <input type="hidden" name="acao" value={revogado ? "reativar" : "revogar"} />
+                      <button
+                        type="submit"
+                        style={{
+                          background: "none",
+                          border: `1px solid ${revogado ? "#155724" : "#721c24"}`,
+                          color: revogado ? "#155724" : "#721c24",
+                          borderRadius: 16,
+                          padding: "4px 14px",
+                          cursor: "pointer",
+                          fontSize: ".8rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {revogado ? "Reativar" : "Revogar"}
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
         <aside style={{ border: "1px solid #dde3ee", borderRadius: 8, padding: 16 }}>
           <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Convidar admin</h2>
           <p style={{ fontSize: ".8rem", color: "#555" }}>
-            O convidado entra pelo próprio link mágico. O convite fica registrado na auditoria.
+            O convite fica registrado na auditoria. <strong>São dois passos:</strong> esta linha
+            autoriza o e-mail no banco, mas a conta em si é criada pelo painel do Supabase
+            (Authentication → Users → Invite user) — o cadastro público está desligado.
           </p>
           <form action={convidarAdmin}>
             <label style={{ display: "block", fontSize: ".85rem", fontWeight: 600, marginBottom: 8 }}>
@@ -74,6 +118,18 @@ export default async function AdminsPage({
       </div>
     </>
   );
+}
+
+function chip(bg: string, cor: string): React.CSSProperties {
+  return {
+    background: bg,
+    color: cor,
+    borderRadius: 12,
+    padding: "2px 10px",
+    fontSize: ".78rem",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+  };
 }
 
 function banner(cor: "ok" | "erro"): React.CSSProperties {

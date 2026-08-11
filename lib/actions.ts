@@ -52,6 +52,15 @@ export async function atualizarCuradoria(formData: FormData) {
 
   if (error) redirect(`${base}?erro=salvar`);
 
+  // Trilha: quem decidiu a triagem desta submissão, e para qual status. Sem o texto das notas —
+  // a auditoria registra a DECISÃO, não recopia o conteúdo (que já está na própria submissão).
+  await registrarAuditoria(admin, "curadoria", {
+    tabela: "submissoes",
+    id,
+    status_maturacao: status,
+    tem_encaminhamento: Boolean(encaminhamento),
+  });
+
   revalidatePath(base);
   redirect(`${base}?ok=1`);
 }
@@ -110,4 +119,45 @@ export async function convidarAdmin(formData: FormData) {
 
   revalidatePath(base);
   redirect(`${base}?ok=1`);
+}
+
+// Revoga (ou reativa) o acesso de um admin — achado M-9.
+//
+// Por marcação, nunca por DELETE: a linha fica como histórico de quem já teve acesso, e o
+// `convidado_por` de terceiros continua fazendo sentido. Quem tira o poder de fato é
+// private.is_admin(), que passou a exigir `revogado_em is null` (migration 24) — como ela é o
+// predicado de TODAS as policies de admin, a revogação vale em todas as tabelas de uma vez.
+export async function revogarAdmin(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const alvo = String(formData.get("email") ?? "").trim().toLowerCase();
+  const reativar = String(formData.get("acao") ?? "") === "reativar";
+  const base = "/admin/admins";
+
+  if (!alvo) redirect(`${base}?erro=email`);
+
+  // AUTOPROTEÇÃO: sem isto, o último admin ativo consegue zerar o próprio acesso ao painel e
+  // não há caminho de volta pela aplicação (não existe DELETE nem service role aqui — só
+  // intervenção manual no banco). Vive na action porque a regra depende de QUEM está agindo.
+  if (!reativar && alvo === admin.email.toLowerCase()) redirect(`${base}?erro=auto`);
+
+  const { error } = await admin.supabase
+    .from("admins")
+    .update(
+      reativar
+        ? { revogado_em: null, revogado_por: null }
+        : { revogado_em: new Date().toISOString(), revogado_por: admin.email }
+    )
+    .eq("email", alvo);
+
+  if (error) redirect(`${base}?erro=salvar`);
+
+  await registrarAuditoria(admin, "revogacao_admin", {
+    alvo,
+    acao: reativar ? "reativacao" : "revogacao",
+  });
+
+  revalidatePath(base);
+  redirect(`${base}?ok=${reativar ? "reativado" : "revogado"}`);
 }

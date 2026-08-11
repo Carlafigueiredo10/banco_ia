@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAdmin } from "./auth-guard";
+import { getAdmin, registrarAuditoria } from "./auth-guard";
 import {
   codes, AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, HOSPEDAGEM_INFERENCIA, TRANSFERENCIA_INTERNACIONAL,
@@ -90,6 +90,16 @@ export async function alternarCatalogoFlag(formData: FormData) {
     .eq("id", id);
   if (error) redirect("/admin/catalogo?erro=salvar");
 
+  // Trilha: este é o botão que expõe (ou retira) uma solução do site público. É a ação de
+  // curadoria com maior consequência externa — sem registro, não há como responder depois
+  // "quem publicou isto, e quando".
+  await registrarAuditoria(admin, "publicacao", {
+    tabela: "catalogo_solucoes",
+    id,
+    campo,
+    valor_novo: valor,
+  });
+
   revalidatePath("/admin/catalogo");
   revalidatePath("/admin/indicadores");
   redirect("/admin/catalogo?ok=1");
@@ -108,6 +118,13 @@ export async function alternarFundacaoPublicado(formData: FormData) {
     .update({ publicado: valor })
     .eq("id", id);
   if (error) redirect("/admin/fundacao?erro=salvar");
+
+  await registrarAuditoria(admin, "publicacao", {
+    tabela: "fundacao",
+    id,
+    campo: "publicado",
+    valor_novo: valor,
+  });
 
   revalidatePath("/admin/fundacao");
   revalidatePath("/admin/indicadores");
@@ -147,6 +164,16 @@ export async function criarFundacao(formData: FormData) {
     fonte: "cadastro manual",
   });
   if (error) redirect(`${base}?erro=salvar`);
+
+  // Sem .select() depois do insert: a chave natural (nome+url) basta para localizar o registro,
+  // e evita um caminho a mais de erro numa action que já redirecionou em caso de falha.
+  await registrarAuditoria(admin, "cadastro", {
+    tabela: "fundacao",
+    nome,
+    url,
+    tipo,
+    publicado: publicar,
+  });
 
   revalidatePath("/admin/fundacao");
   revalidatePath("/admin/indicadores");
@@ -196,6 +223,16 @@ export async function criarCatalogo(formData: FormData) {
   });
   if (error) redirect(`${base}?erro=salvar`);
 
+  // nivel_risco entra no detalhe de propósito: é a classificação que o banco atribui a uma
+  // solução de IA de governo, e a que alguém pode vir a questionar depois.
+  await registrarAuditoria(admin, "cadastro", {
+    tabela: "catalogo_solucoes",
+    titulo,
+    orgao,
+    nivel_risco: opcional(formData, "nivel_risco", codes(NIVEL_RISCO)),
+    publicado: publicar,
+  });
+
   revalidatePath("/admin/catalogo");
   revalidatePath("/admin/indicadores");
   redirect("/admin/catalogo?ok=1");
@@ -227,6 +264,8 @@ export async function editarFundacao(formData: FormData) {
     ressalva: txt(formData, "ressalva", 1000),
   }).eq("id", id);
   if (error) redirect(`${base}?erro=salvar`);
+
+  await registrarAuditoria(admin, "edicao", { tabela: "fundacao", id, nome, tipo });
 
   revalidatePath("/admin/fundacao");
   redirect("/admin/fundacao?ok=1");
@@ -270,6 +309,13 @@ export async function editarCatalogo(formData: FormData) {
     ...camposModelCard(formData),
   }).eq("id", id);
   if (error) redirect(`${base}?erro=salvar`);
+
+  await registrarAuditoria(admin, "edicao", {
+    tabela: "catalogo_solucoes",
+    id,
+    titulo,
+    nivel_risco: opcional(formData, "nivel_risco", codes(NIVEL_RISCO)),
+  });
 
   revalidatePath("/admin/catalogo");
   redirect("/admin/catalogo?ok=1");
@@ -327,6 +373,15 @@ export async function promoverSubmissao(formData: FormData) {
     const dup = error.code === "23505" || /duplicate|unique/i.test(error.message);
     redirect(`${base}?erro=${dup ? "duplicada" : "salvar"}`);
   }
+
+  // Liga a submissão original ao item do catálogo na trilha: é o ponto onde um dado enviado
+  // por um terceiro vira conteúdo do banco.
+  await registrarAuditoria(admin, "promocao", {
+    tabela: "catalogo_solucoes",
+    origem_submissao_id: submissaoId,
+    titulo,
+    orgao,
+  });
 
   revalidatePath("/admin/catalogo");
   revalidatePath("/admin/indicadores");
