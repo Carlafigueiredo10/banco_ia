@@ -33,7 +33,27 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
 - **Sem SERVICE_ROLE_KEY no app/Vercel.** Só no script de import, local.
 - **RLS:** anon só INSERT de formulário; admin (em `public.admins`, checado por `private.is_admin()`)
   lê/edita; **sem DELETE** (direito do titular = anonimização auditada); `auditoria` imutável.
-- **Toda escrita pública passa por `/api/submissao`** (Zod `.strict()`, honeypot, rate limit via RPC).
+- **Vitrine pública lê com o papel `anon`, sempre** (`createSupabaseAnonClient`), inclusive em SSR.
+  As policies públicas de `catalogo_solucoes`/`fundacao` são `to anon` (migration 21) — página nova
+  com `createSupabaseServerClient()` retorna **0 linhas em silêncio**. Motivo: admin e não-admin
+  compartilham o mesmo papel Postgres (`authenticated`), então PII não é separável por grant de
+  coluna; a fronteira é a policy.
+- **Escrita pública é grant por COLUNA, não por tabela** (migration 22): `anon` insere 26 colunas em
+  `submissoes` e 11 em `revisores` — só o que o formulário envia. ⚠ Não acrescentar `.select()`
+  depois do `.insert()` nessas rotas: sem SELECT concedido, vira 403.
+- **Revogação em vez de exclusão também para admin** (migrations 24/25): `admins.revogado_em`, com
+  `private.is_admin()` exigindo `is null`. Autorrevogação e forja de `revogado_por` são barradas na
+  **RLS**, não só na server action.
+- **Conta de admin não é criada pelo app.** Convite = linha em `public.admins` (auditada) **+**
+  Invite no painel do Supabase. O cadastro público fica desligado.
+- **Revogação de privilégio é sempre dirigida** (`revoke delete, truncate … `), nunca `revoke all` —
+  ver migration 26. Default privileges do Supabase concedem `ALL`: toda tabela nova precisa revogar
+  o que não usa, e entrar na matriz de `docs/RLS_TESTES.md`.
+- **Toda escrita pública passa por `/api/submissao`** — em Zod `.strict()`, honeypot e rate limit.
+  ⚠ Isto é verdade **na aplicação**, não no banco: com a chave publishable dá para chamar o
+  PostgREST direto. O grant por coluna e o `with check` limitam *o que* se grava; o volume ainda
+  não é limitado fora da rota. Fechar isso exige RPC atômica (rate limit + insert na mesma
+  transação) — **backlog P1**, ver [docs/ADR_INFRAESTRUTURA.md](docs/ADR_INFRAESTRUTURA.md).
 - **Rotas admin revalidam admin na própria rota** (`getAdmin()` em `lib/auth-guard.ts`).
 - **CSV** sempre via `lib/csv.ts` (escapa injeção `= + - @`).
 - **Região de execução é decisão de projeto, não default do fornecedor.** `vercel.json` fixa
@@ -52,10 +72,25 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   visitante. `tests/sinapses.test.ts` guarda isso; a rota aparecer como `ƒ` no build é esperado.
 
 ## Migrations
-`supabase/migrations/` (01→08), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
+`supabase/migrations/` (01→26), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
 RLS (`docs/RLS_TESTES.md`) antes de deploy.
+
+⚠ **Migration aplicada é histórico — não se edita o arquivo depois.** Corrigir o texto de uma
+migration já executada cria duas verdades (produção rodou A, o repo afirma B) e faz um `db reset`
+divergir. Correção vira migration nova.
+
+⚠ **Tabela ou policy nova sem linha na matriz de RLS é tabela não testada.** `catalogo_solucoes`,
+`fundacao` e `revisores` ficaram de fora da matriz desde a migration 11 — foi essa lacuna, e não
+uma decisão errada, que deixou passar os achados A-1 (PII do catálogo legível por qualquer conta
+autenticada) e A-5 (`TRUNCATE` concedido a `authenticated`).
 
 ## Pendências
 - Planilha real das 30: ajustar `MAPA_COLUNAS` em `scripts/import-solucoes.ts`.
 - `app/privacidade` é rascunho LGPD — revisar com o DPO/ENAP.
+- **A-3 (aberto):** cadastro público de contas ainda ligado no Supabase — enquanto estiver,
+  `authenticated` é qualquer pessoa. Fechar no painel (templates → teste real do link → desligar
+  signup) junto com `shouldCreateUser: false` e a allowlist de `type` no `/auth/callback`.
+- **P1:** RPC atômica de escrita pública (rate limit + insert na mesma transação).
+- `contadores_publicos` tem `search_path = public` em vez de `''` — sem caminho de exploração hoje
+  (`anon`/`authenticated` não têm `CREATE` no schema), mas é a única função fora do padrão.
 - Rawline (fonte gov.br) não está no Google Fonts; hoje usamos Raleway.

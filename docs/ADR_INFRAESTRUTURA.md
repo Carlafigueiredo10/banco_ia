@@ -94,6 +94,28 @@ O que torna essa escolha defensável é o **custo de saída, que foi mantido bai
 | 3 | Prova de conceito: Postgres gerenciado nacional + Next em container. Medir latência e custo. | 1 |
 | 4 | Publicar a decisão de migração com prazo, ou publicar a justificativa fundamentada de permanência. | 3 |
 
+## Auditoria de segurança — agosto/2026
+
+Uma auditoria GRC do repositório, verificada contra o banco de produção, gerou as migrations 21–26.
+Fechados: PII do catálogo legível por qualquer conta autenticada (A-1), open redirect no callback
+de auth (A-2), escrita pública que contornava a rota e forjava campos de curadoria (A-4),
+autorrevogação de admin por PostgREST, e default privileges do Supabase que davam `DELETE`/
+`TRUNCATE` a `authenticated` (A-5). Evidência antes/depois de cada um em
+[docs/RLS_TESTES.md](RLS_TESTES.md).
+
+**Backlog que ficou registrado, em ordem de prioridade:**
+
+| | Item | Por quê |
+|---|---|---|
+| **P1** | RPC atômica para escrita pública — rate limit e `insert` na mesma transação | O grant por coluna limita *o que* o anônimo grava, não *quanto*. Chamada direta ao PostgREST ainda pula o `check_rate_limit`. Como não há DELETE, spam de formulário é irreversível pela aplicação — e, num projeto com restrição de custo, encher tabela é problema financeiro além de operacional. |
+| **P2** | Auditoria transacional (trigger ou RPC) no lugar da aplicacional | Hoje a mutação e o registro na trilha são operações independentes: se a segunda falhar, houve mudança sem registro; e escrita direta via PostgREST não gera registro nenhum. Cobre o uso normal do painel, não garante cobertura total. Só vale a pena se auditoria virar requisito formal de governança. |
+| **P3** | A-3: fechar o cadastro público de contas | Enquanto estiver aberto, `authenticated` é qualquer pessoa do mundo. Exige mudança no painel do Supabase, não só código. |
+| **P3** | CAPTCHA no Auth (Attack Protection) | Mitiga enumeração de contas na API do Supabase, que a aplicação não consegue fechar sozinha. Decisão de custo/atrito. |
+
+**Não fazer** (avaliado e descartado nesta rodada): RBAC próprio, tabela de papéis, middleware novo
+de autorização, API administrativa genérica, `service_role` para operações de browser. O Supabase
+já entrega as primitivas; deslocar a segurança da RLS para código de aplicação seria regressão.
+
 ## Transparência
 
 Esta decisão é pública. A página `/privacidade` deve declarar onde o dado está hospedado, qual a
