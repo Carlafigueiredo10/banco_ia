@@ -160,7 +160,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 # Federação Sinapses (CNJ) — vitrine /judiciario. Server-only, sem NEXT_PUBLIC_.
 SINAPSES_ENABLED=true
-SINAPSES_API_URL=https://sinapses2-backend.hml.ia.pje.jus.br/api
+SINAPSES_API_URL=https://sinapses2-backend.ia.pje.jus.br/api
 ```
 
 > **Não** use `SERVICE_ROLE_KEY` na aplicação — apenas, se necessário, no script local de
@@ -178,10 +178,14 @@ Alimentam a vitrine `/judiciario`, que consulta a API pública do CNJ em runtime
 
 A URL é conferida contra uma **allowlist de URL-base exata** (`BASES_PERMITIDAS`, em
 `lib/sinapses-normalizar.ts`): rejeita `http://`, credenciais, porta, query, hash e caminho
-divergente. Quando o CNJ informar a URL de produção, adicione a URL **exata** à allowlist.
+divergente. A allowlist tem duas entradas — produção e homologação.
 
-Enquanto a origem for homologação, a vitrine sai com tarja de "ambiente de testes" e `noindex`
-automático — os dois se desligam sozinhos quando a URL apontar para produção.
+O ambiente é deduzido do **hostname** (`.hml.` = homologação), não de uma flag. Apontando para
+homologação, a vitrine sai com tarja de "ambiente de testes" e `noindex`; apontando para produção,
+os dois se desligam sozinhos, sem deploy de código.
+
+Desde **11/08/2026** a origem é a **produção** do CNJ
+(`https://sinapses2-backend.ia.pje.jus.br/api`), formalmente autorizada — a vitrine é indexável.
 
 #### Rollback da vitrine do Judiciário
 

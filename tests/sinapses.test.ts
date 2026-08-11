@@ -7,7 +7,7 @@ import {
   rotulo, humanizar, normalizarTexto, classificarIdade,
   filtrar, ordenar, facetas, montarQuery, lerFiltros, lerOrdem,
   ehPidValido, normalizarPid, resolverOrigem, sinapsesHabilitado, urlSegura, temQueryString,
-  FILTROS_VAZIOS, BASE_HOMOLOGACAO, LIMITE_Q,
+  FILTROS_VAZIOS, BASE_HOMOLOGACAO, BASE_PRODUCAO, LIMITE_Q,
   type ProjetoNormalizado, type Filtros, type Dimensao,
 } from "../lib/sinapses-normalizar";
 import { ROTAS_MEDIDAS, metricaSchema } from "../lib/metrica";
@@ -370,6 +370,15 @@ describe("Sinapses — origem (allowlist de URL-base exata)", () => {
     expect(resolverOrigem(`${BASE_HOMOLOGACAO}/`, "production")).toEqual({
       disponivel: true, url: BASE_HOMOLOGACAO, ambiente: "homologacao",
     });
+  });
+
+  it("aceita a URL exata de PRODUÇÃO e a classifica como produção", () => {
+    // É o que desliga sozinho a tarja de homologação e o noindex: o ambiente vem do
+    // hostname, não de uma flag que alguém precise lembrar de virar.
+    expect(resolverOrigem(BASE_PRODUCAO, "production")).toEqual({
+      disponivel: true, url: BASE_PRODUCAO, ambiente: "producao",
+    });
+    expect(BASE_PRODUCAO).not.toContain(".hml.");
   });
 
   it("rejeita http, credenciais, porta, query, hash e caminho divergente", () => {

@@ -639,9 +639,12 @@ export type ResultadoOrigem =
   | { disponivel: false; motivo: string };
 
 export const BASE_HOMOLOGACAO = "https://sinapses2-backend.hml.ia.pje.jus.br/api";
+/** Produção, informada formalmente pelo CNJ em 11/08/2026. */
+export const BASE_PRODUCAO = "https://sinapses2-backend.ia.pje.jus.br/api";
 
-/** Adicionar aqui a URL EXATA de produção quando o CNJ informar. */
-export const BASES_PERMITIDAS = new Set<string>([BASE_HOMOLOGACAO]);
+// Allowlist de URL-BASE EXATA (não de hostname): hostname sozinho ainda aceitaria
+// /outra-api, ?destino=x, usuario:senha@ ou :8443 no mesmo domínio.
+export const BASES_PERMITIDAS = new Set<string>([BASE_PRODUCAO, BASE_HOMOLOGACAO]);
 
 export function resolverOrigem(valor: string | undefined, ambienteNode = process.env.NODE_ENV): ResultadoOrigem {
   const bruto = valor?.trim();

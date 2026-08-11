@@ -1,6 +1,26 @@
 # ADR — Federação da API pública do Sinapses (CNJ)
 
 **Data:** 05/08/2026 · **Responsável:** Carla Figueiredo (coordenação BBSIA) · **Status:** aceito
+**Atualizado em 11/08/2026:** origem migrada para produção (ver abaixo).
+
+## Produção — 11/08/2026
+
+O CNJ comunicou formalmente que a **API pública do Sinapses2 está em produção**:
+`https://sinapses2-backend.ia.pje.jus.br/api` (documentação em `/docs/api`). A URL entrou na
+allowlist e a env var passou a apontar para ela.
+
+Com isso, **três coisas se desligaram sozinhas** — por dedução do hostname (`.hml.`), não por flag
+que alguém precisasse lembrar de virar: a tarja de "ambiente de testes", o `noindex` automático e a
+ressalva de risco institucional de publicar dado de homologação sob a marca do BBSIA. Era exatamente
+o mecanismo previsto na v1 desta decisão, e ele funcionou sem deploy de código para a regra em si.
+
+Medido na primeira coleta de produção: **178 informados / 178 recebidos / 178 válidos**, zero
+descartes, zero duplicados, **46 tribunais**, 16 vocabulários sem degradação, snapshot de **489 KB**
+(72% de folga sob a guarda de 1,8 MB) e **nenhum campo `contato_*`** no payload. Contrato idêntico
+ao da homologação — a normalização não precisou de um ajuste sequer.
+
+A homologação continua na allowlist, para diagnóstico. Apontar para ela reativa tarja e `noindex`
+automaticamente.
 
 ## Contexto
 
@@ -55,10 +75,13 @@ em runtime que atenda a **todos** os critérios:
 Confirmado pela coordenação em 05/08/2026: **integração, republicação das fichas e indexação**.
 O CNJ gerou a API para o BBSIA consumir.
 
-Continuam **em aberto**, sem bloquear o desenvolvimento: URL oficial de produção (para entrar na
-allowlist exata), aceitação formal do cache de 24 h (a resposta deles traz `Cache-Control: no-cache,
-private`), canal para correções, política de remoção de registros, versionamento do contrato e
-estabilidade esperada do ambiente.
+✅ **Resolvido em 11/08/2026:** URL oficial de produção informada formalmente pelo CNJ, com a API
+declarada em produção. Entrou na allowlist.
+
+Continuam **em aberto**, sem bloquear nada: aceitação formal do cache de 24 h (a resposta deles ainda
+traz `Cache-Control: no-cache, private`), canal para correções, política de remoção de registros,
+versionamento do contrato e estabilidade esperada do ambiente — a homologação ficou 13 h fora do ar
+em 05/08, e não temos compromisso de disponibilidade para a produção.
 
 ## Indexação
 
@@ -72,10 +95,16 @@ estabilidade esperada do ambiente.
 | `pid` malformado | `noindex, nofollow` |
 
 **Aceitação de risco registrada:** a coordenação optou inicialmente por indexar tudo; a revisão
-técnica determinou `noindex` automático em homologação, e é o que vale. Tarja visual não impede
+técnica determinou `noindex` automático em homologação, e é o que valeu. Tarja visual não impede
 buscador de servir dado de ambiente de **testes** como conteúdo oficial do BBSIA, e a API não expõe
-URL canônica por projeto — não há `rel=canonical` para devolver o crédito ao CNJ. O `noindex` se
-desliga sozinho quando `SINAPSES_API_URL` apontar para produção.
+URL canônica por projeto — não há `rel=canonical` para devolver o crédito ao CNJ.
+
+**Encerrado em 11/08/2026:** com a origem em produção, a vitrine passou a `index, follow`. A regra
+continua no código e volta a valer sozinha se alguém apontar a env var para homologação de novo —
+não foi removida, foi apenas deixada de ser acionada.
+
+As demais linhas da tabela seguem ativas: query string, fonte indisponível, snapshot velho e `pid`
+malformado continuam saindo do índice.
 
 ## Consequências
 
