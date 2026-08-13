@@ -165,10 +165,38 @@ dois probes manuais).
   toda edição reordenaria a coleta em andamento. Como `nome` pode repetir, permanecem o dedup por
   `pid`, a conferência de contagens e **uma** repetição da coleta; persistindo a divergência, o
   snapshot anterior é mantido.
-- *Stale-on-error não provado.* A expectativa é que o Data Cache sirva o último valor válido quando a
-  revalidação falha. **Ainda não foi provado na Vercel** (ver README, seção de verificação). Até lá, a
-  promessa nos textos é "tenta preservar", não "preserva". Se não preservar, fica a página de
-  indisponibilidade — não se adiciona Redis nem Postgres por causa disso.
+- ~~*Stale-on-error não provado.*~~ ✅ **Provado em 11/08/2026** — ver abaixo.
+
+### Stale-on-error — provado, e como
+
+O risco que sobrava era o mais central: se a revalidação diária falhar, o Data Cache continua
+servindo o último snapshot bom, ou a vitrine cai? A resposta muda o que se pode prometer, então foi
+medida em vez de presumida.
+
+**Método.** Branch descartável `spike/stale-on-error` (nunca mergeada), deploy de *preview*, com
+`REVALIDACAO_SEGUNDOS = 15` e uma falha controlada dentro da função cacheada — o único ponto que
+reproduz "revalidação falhou"; falhar em `resolverOrigem` não serviria, porque nem chegaríamos a
+chamar o cache.
+
+O gatilho da falha é **temporal** (um instante de corte absoluto), não uma env var ligada depois.
+Motivo: trocar env var exige redeploy, e um deployment novo tornaria impossível distinguir "não
+serve stale" de "cache frio" — as duas hipóteses produziriam a mesma tela. Com corte temporal, a
+falha começa sozinha **no mesmo deployment**, com o cache comprovadamente quente.
+
+**Controle.** Antes do corte, o carimbo "consultado em" avança (11h28 → 11h29 → 11h30), provando que
+o TTL de 15 s estava valendo e que a revalidação de fato ocorria.
+
+**Resultado.** Depois do corte, com toda revalidação lançando erro, a página seguiu servindo os
+**178 projetos** com o carimbo congelado no horário da última coleta boa, por mais de 3 minutos de
+falhas consecutivas, em respostas de ~500 ms. **Nunca degradou.**
+
+**O limite, também medido.** Forçando chave de cache nova (`SINAPSES_VERSAO` diferente) com a falha
+ativa — ou seja, cold start sem snapshot algum — a rota devolve a página de indisponibilidade, com
+`noindex`, e a home volta a não somar a integração nem mostrar o card.
+
+**Conclusão:** a degradação é por **ausência de snapshot**, não por falha da origem. Uma queda do CNJ
+como a de 05/08 (13 h) não tira a vitrine do ar enquanto houver snapshot em cache. Não se adiciona
+Redis nem Postgres — não há problema a resolver.
 
 ## O que deliberadamente NÃO existe
 

@@ -199,10 +199,14 @@ O texto exibido diz que a decisão foi do BBSIA — não insinua problema no CNJ
 atualização antes das 24 h de cache (correção urgente do CNJ), incremente `SINAPSES_VERSAO` em
 `lib/sinapses-normalizar.ts` e faça deploy: a constante entra na chave do cache.
 
-> **Ainda não verificado:** se a revalidação falhar, esperamos que o Data Cache continue servindo o
-> último snapshot válido. Isso **precisa ser provado em preview** (TTL curto + falha controlada) antes
-> de ser tratado como garantia. Enquanto não for, o comportamento assegurado é: em cold start ou sem
-> snapshot utilizável, a página mostra indisponibilidade.
+> **Verificado em 11/08/2026 (preview, TTL de 15 s + falha controlada):** com um snapshot válido em
+> cache, a falha na revalidação **não** derruba a vitrine — o Data Cache segue servindo o último
+> snapshot bom, com o "consultado em" congelado no horário da última coleta bem-sucedida. Observado
+> por mais de 3 minutos de falhas consecutivas, sempre com os 178 projetos na tela.
+>
+> O limite: **em cold start (cache vazio) a página mostra indisponibilidade** — confirmado forçando
+> chave de cache nova. Nesse estado a rota sai com `noindex` e a home volta a não somar a integração.
+> Ou seja, a degradação é por ausência de snapshot, não por falha da origem.
 
 ### Configuração inicial (banco)
 
