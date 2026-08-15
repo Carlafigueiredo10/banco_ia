@@ -135,11 +135,44 @@ export const ESTAGIO: Opcao[] = [
   { value: "inconsistente", label: "Inconsistente — revisar" },
 ];
 
+// Espelha o CHECK da migration 29 (que recriou o da 01 acrescentando 'descartada').
+// `descartada` exige `motivo_descarte` não-vazio — CHECK no banco, não regra de tela.
 export const STATUS_MATURACAO: Opcao[] = [
   { value: "mapeada", label: "Mapeada" },
   { value: "em_adequacao", label: "Em adequação" },
   { value: "validada", label: "Validada" },
+  { value: "descartada", label: "Descartada" },
 ];
+
+// =====================================================================================
+// Perfis e avaliação — espelham os CHECK da migration 28 (anti-drift).
+// =====================================================================================
+
+// Papel do ator em `public.admins`. Dois valores, deliberadamente: não é RBAC.
+export const PAPEL_ATOR: Opcao[] = [
+  { value: "admin", label: "Administrador (coordenação)" },
+  { value: "avaliador", label: "Avaliador" },
+];
+
+// Resultado da avaliação de uma solução do catálogo.
+// ⚠ `revisado` (booleano) NÃO significa mais "pendente/revisado": passou a ser derivado deste
+//   campo e quer dizer apenas "avaliação concluída" — o que inclui REPROVADA. Nenhuma lógica
+//   nova deve usar o booleano; filtros, indicadores e rótulos usam STATUS_AVALIACAO.
+export const STATUS_AVALIACAO: Opcao[] = [
+  { value: "pendente", label: "Pendente" },
+  { value: "aguardando_informacoes", label: "Aguardando informações" },
+  { value: "aprovada", label: "Aprovada" },
+  { value: "reprovada", label: "Reprovada" },
+];
+
+// Rótulo do campo de parecer conforme o estado — uma coluna só no banco, três significados na
+// tela (conclusão, justificativa de reprovação, informação solicitada).
+export const ROTULO_PARECER: Record<string, string> = {
+  pendente: "Parecer da avaliação",
+  aguardando_informacoes: "Informações solicitadas",
+  aprovada: "Parecer da aprovação",
+  reprovada: "Parecer da reprovação",
+};
 
 // =====================================================================================
 // Vitrines de referência — Fundação (item 5) e Catálogo de Soluções (item 7, taxonomia LIIA).

@@ -5,13 +5,25 @@ export default function AcessoNegadoPage() {
     <main id="conteudo" style={{ maxWidth: 480, margin: "0 auto", padding: "64px 20px", textAlign: "center" }}>
       <p style={{ fontSize: "2.5rem", margin: 0 }}>🔒</p>
       <h1 style={{ fontSize: "1.5rem", margin: "12px 0" }}>Acesso restrito</h1>
-      <p style={{ color: "#555", marginBottom: 24 }}>
-        Este e-mail não está autorizado como administrador. Se você é da coordenação, peça a um
-        admin para te convidar.
+      {/* Esta tela agora atende dois casos, e o texto antigo ("peça um convite") estava errado
+          para o segundo: (a) quem não tem acesso nenhum; (b) um AVALIADOR logado que tentou abrir
+          uma página exclusiva da coordenação. Dizer "peça um convite" a quem já está dentro
+          confunde. */}
+      <p style={{ color: "#555", marginBottom: 8 }}>
+        Esta área é exclusiva da coordenação.
       </p>
-      <Link href="/admin/login" style={{ color: "var(--bbsia-azul)" }}>
-        Voltar ao login
-      </Link>
+      <p style={{ color: "#555", marginBottom: 24, fontSize: ".92rem" }}>
+        Se você avalia soluções, seu acesso é o <strong>catálogo</strong>. Se deveria estar aqui e
+        não está, peça a um administrador para verificar seu perfil.
+      </p>
+      <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+        <Link href="/admin/catalogo" style={{ color: "var(--bbsia-azul)" }}>
+          Ir para o catálogo
+        </Link>
+        <Link href="/admin/login" style={{ color: "var(--bbsia-azul)" }}>
+          Voltar ao login
+        </Link>
+      </div>
     </main>
   );
 }

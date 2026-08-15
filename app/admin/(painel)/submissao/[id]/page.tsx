@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { atualizarCuradoria, anonimizar } from "@/lib/actions";
 import {
   labelOf, NIVEL_GOVERNO, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
@@ -30,7 +30,7 @@ export default async function DetalhePage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data } = await supabase.from("submissoes").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const s = data as Sub;

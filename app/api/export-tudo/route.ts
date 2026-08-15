@@ -30,14 +30,17 @@ export async function GET() {
   const admin = await getAdmin();
   if (!admin) return new Response("Não autorizado.", { status: 401 });
 
-  const [subs, cat, fund] = await Promise.all([
+  // 4 consultas: a PII do catálogo mudou para tabela lateral (migration 30) e precisa de join.
+  const [subs, cat, fund, pii] = await Promise.all([
     admin.supabase.from("submissoes").select("*"),
     admin.supabase.from("catalogo_solucoes").select("*"),
     admin.supabase.from("fundacao").select("*"),
+    admin.supabase.from("catalogo_responsavel").select("catalogo_id, nome, email"),
   ]);
   if (subs.error || cat.error || fund.error) {
     return new Response("Erro ao gerar export.", { status: 500 });
   }
+  const porId = new Map((pii.data ?? []).map((p) => [p.catalogo_id as string, p]));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const linhasSub = (subs.data ?? []).map((r: any) => ({
@@ -56,7 +59,8 @@ export async function GET() {
     nivel: labelOf(NIVEL_GOVERNO, r.nivel_governo), uf: r.uf,
     area: labelOf(AREA, r.area), status: labelOf(STATUS_SOLUCAO, r.status),
     tipo: labelOf(TIPO_SOLUCAO, r.tipo_solucao), link: r.link,
-    responsavel: r.responsavel_nome, email: r.responsavel_email,
+    responsavel: porId.get(r.id)?.nome ?? r.responsavel_nome,
+    email: porId.get(r.id)?.email ?? r.responsavel_email,
     origem: labelOf(BLOCO_ORIGEM, r.bloco), data: dia(r.criado_em),
   }));
 

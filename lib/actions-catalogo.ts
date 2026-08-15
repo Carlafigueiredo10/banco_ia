@@ -2,107 +2,205 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAdmin, registrarAuditoria } from "./auth-guard";
+import { getAdmin, getAtor, registrarAuditoria } from "./auth-guard";
 import {
   codes, AREA, NIVEL_GOVERNO, UFS, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
-  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, HOSPEDAGEM_INFERENCIA, TRANSFERENCIA_INTERNACIONAL,
+  SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, STATUS_AVALIACAO,
   FUNDACAO_TIPO, FUNDACAO_ESFORCO, FUNDACAO_SOBERANIA,
 } from "./enums";
+// Model Card extraído para módulo próprio: `"use server"` só exporta async, e o teste anti-drift
+// precisa importar `camposModelCard` para comparar com a allowlist do trigger (migration 31).
+import { camposModelCard, txt, opcional, listaNorm } from "./model-card";
 
-// Helpers de parsing de formulário
+// A avaliação só funciona depois que a migration 31 (governança) estiver aplicada. Entre o deploy
+// deste código e a 31 existe uma janela em que os triggers estritos ainda não existem: uma
+// conclusão feita ali teria autoria não derivada, auditoria não transacional e `revisado`
+// inconsistente — e a própria 31 depois a resetaria para `pendente`.
+// ⚠ A trava vive AQUI, no servidor, não em esconder botão. Esconder UI não é autorização.
+function avaliacaoLigada(): boolean {
+  return process.env.AVALIACAO_ENABLED === "true";
+}
+
+// Helper local que não pertence ao Model Card: lista simples sem normalização de cardinalidade.
 function lista(formData: FormData, campo: string): string[] {
   return String(formData.get(campo) ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 }
-function opcional(formData: FormData, campo: string, codigos: string[]): string | null {
-  const v = String(formData.get(campo) ?? "").trim();
-  return v && codigos.includes(v) ? v : null;
-}
-// Texto opcional: trim; vazio → null; corta no limite (o CHECK do banco é a fronteira final).
-function txt(formData: FormData, campo: string, max?: number): string | null {
-  const v = String(formData.get(campo) ?? "").trim();
-  if (!v) return null;
-  return max ? v.slice(0, max) : v;
-}
-// Array de texto normalizado: split por vírgula, trim, remove vazios, dedup, item ≤500,
-// lista ≤30 (espelha o CHECK de cardinalidade). Retorna [] (coluna é not null default '{}').
-function listaNorm(formData: FormData, campo: string): string[] {
-  const limpos = String(formData.get(campo) ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => s.slice(0, 500));
-  return [...new Set(limpos)].slice(0, 30);
-}
-// Tri-estado (sim/nao/'') → true/false/null. Preserva a distinção "não informado".
-function triestado(formData: FormData, campo: string): boolean | null {
-  const v = String(formData.get(campo) ?? "").trim();
-  if (v === "sim") return true;
-  if (v === "nao") return false;
-  return null;
-}
-// Ano opcional (smallint): inteiro em faixa estática 1950–2200 ou null.
-function anoOpcional(formData: FormData, campo: string): number | null {
-  const v = parseInt(String(formData.get(campo) ?? "").trim(), 10);
-  return Number.isInteger(v) && v >= 1950 && v <= 2200 ? v : null;
-}
-// Campos do model card / conformidade (padrão LIIA v0.3) — ALLOWLIST única, normalizada no
-// servidor, reusada por criar e editar. Nada aqui é enum de status; obrigatoriedade por risco
-// é regra de UX/curadoria, não CHECK no banco.
-function camposModelCard(formData: FormData) {
-  return {
-    versao: txt(formData, "versao", 60),
-    ano_inicio: anoOpcional(formData, "ano_inicio"),
-    supervisao_descricao: txt(formData, "supervisao_descricao", 1000),
-    responsavel_lgpd: txt(formData, "responsavel_lgpd", 300),
-    hospedagem_inferencia: opcional(formData, "hospedagem_inferencia", codes(HOSPEDAGEM_INFERENCIA)),
-    transferencia_internacional: opcional(formData, "transferencia_internacional", codes(TRANSFERENCIA_INTERNACIONAL)),
-    certificacao: txt(formData, "certificacao", 500),
-    impacto_etico: txt(formData, "impacto_etico", 4000),
-    grupos_afetados: listaNorm(formData, "grupos_afetados"),
-    mitigacoes: listaNorm(formData, "mitigacoes"),
-    ia_generativa: triestado(formData, "ia_generativa"),
-    avaliacao_vies: txt(formData, "avaliacao_vies", 4000),
-    robustez: txt(formData, "robustez", 4000),
-    explicabilidade: txt(formData, "explicabilidade", 4000),
-    auditoria_certificacoes: txt(formData, "auditoria_certificacoes", 1000),
-    canal_reclamacao: txt(formData, "canal_reclamacao", 500),
-    data_revisao_proxima: txt(formData, "data_revisao_proxima"),
-  };
+
+// PII do responsável vai para `catalogo_responsavel` (migration 30), nunca mais para as colunas
+// de `catalogo_solucoes` — que a migration 32 vai dropar. Só admin: a RLS da tabela lateral não
+// devolve nem aceita linha de avaliador.
+// Upsert porque a chave é o próprio catalogo_id (1:1). Se os três vierem vazios, não cria linha.
+type SupabaseCli = Awaited<ReturnType<typeof getAdmin>> extends infer T
+  ? T extends { supabase: infer S } ? S : never
+  : never;
+
+async function gravarResponsavel(supabase: SupabaseCli, catalogoId: string, formData: FormData) {
+  const nome = String(formData.get("responsavel_nome") ?? "").trim() || null;
+  const email = String(formData.get("responsavel_email") ?? "").trim() || null;
+  const cargo = String(formData.get("responsavel_cargo") ?? "").trim() || null;
+  if (!nome && !email && !cargo) return;
+
+  await supabase
+    .from("catalogo_responsavel")
+    .upsert({ catalogo_id: catalogoId, nome, email, cargo }, { onConflict: "catalogo_id" });
 }
 
 // Alterna publicado/revisado no catálogo. Via Server Action protegida (getAdmin);
 // a RLS catalogo_admin_update reforça a autorização no banco.
-export async function alternarCatalogoFlag(formData: FormData) {
+//
+// SUBSTITUI `alternarCatalogoFlag`, que recebia `campo = publicado | revisado` e tratava os dois
+// como a mesma coisa. Publicar e avaliar passaram a ser atos de perfis diferentes, com regras
+// diferentes — uma função genérica escondia isso e tornava a autorização difícil de ler.
+export async function definirPublicacao(formData: FormData) {
   const admin = await getAdmin();
   if (!admin) redirect("/admin/login");
 
   const id = String(formData.get("id") ?? "");
-  const campo = String(formData.get("campo") ?? "");
   const valor = String(formData.get("valor") ?? "") === "true";
-  if (campo !== "publicado" && campo !== "revisado") redirect("/admin/catalogo?erro=campo");
 
   const { error } = await admin.supabase
     .from("catalogo_solucoes")
-    .update({ [campo]: valor })
+    .update({ publicado: valor })
     .eq("id", id);
-  if (error) redirect("/admin/catalogo?erro=salvar");
+
+  // O banco recusa publicar item de `formulario` sem aprovação e qualquer item reprovado
+  // (invariantes da migration 31). Traduz para linguagem de gente em vez de mostrar 42501/23514.
+  if (error) {
+    const bloqueio = /invariante|reprovada|aprovada|42501|23514/i.test(error.message);
+    redirect(`/admin/catalogo?erro=${bloqueio ? "publicacao_bloqueada" : "salvar"}`);
+  }
 
   // Trilha: este é o botão que expõe (ou retira) uma solução do site público. É a ação de
-  // curadoria com maior consequência externa — sem registro, não há como responder depois
-  // "quem publicou isto, e quando".
+  // curadoria com maior consequência externa.
   await registrarAuditoria(admin, "publicacao", {
     tabela: "catalogo_solucoes",
     id,
-    campo,
+    campo: "publicado",
     valor_novo: valor,
   });
 
   revalidatePath("/admin/catalogo");
   revalidatePath("/admin/indicadores");
   redirect("/admin/catalogo?ok=1");
+}
+
+// Conclui uma avaliação. Admin OU avaliador (decisão da coordenação: com 2 admins e nenhum
+// avaliador cadastrado, exclusividade travaria a fila — a separação é sobre LIMITAR o avaliador,
+// não sobre segregar funções).
+//
+// ⚠ Aceita apenas os três resultados; `pendente` NUNCA vem por aqui. Voltar para pendente é
+//   `reabrirAvaliacao` (admin) ou consequência automática de mudança de conteúdo.
+// ⚠ Estas validações são de UX. A fronteira real é o trigger da migration 31: sem ela, um PATCH
+//   direto no PostgREST contornaria tudo isto — foi o vício de A-3 e da 24→25.
+export async function concluirAvaliacao(formData: FormData) {
+  const ator = await getAtor();
+  if (!ator) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  const base = `/admin/catalogo/${id}/avaliar`;
+
+  if (!avaliacaoLigada()) redirect(`${base}?erro=desligada`);
+
+  const resultado = String(formData.get("resultado") ?? "");
+  const permitidos = ["aprovada", "reprovada", "aguardando_informacoes"];
+  if (!permitidos.includes(resultado)) redirect(`${base}?erro=resultado`);
+
+  const parecer = String(formData.get("parecer") ?? "").trim();
+  if (!parecer) redirect(`${base}?erro=parecer`);
+
+  // Salva o Model Card JUNTO com a conclusão, numa sentença só. É o caso `c1` da matriz: o
+  // avaliador analisa, preenche os campos de risco e conclui — não faz sentido separar em dois
+  // cliques, e o trigger da 31 trata isso como uma operação (a invalidação só dispara quando o
+  // conteúdo muda SEM que a avaliação esteja sendo concluída na mesma sentença).
+  const { error } = await ator.supabase
+    .from("catalogo_solucoes")
+    .update({ ...camposModelCard(formData), status_avaliacao: resultado, parecer })
+    .eq("id", id);
+
+  if (error) {
+    // 42501 vem do trigger (transição inválida, coluna fora da allowlist, avaliação já concluída).
+    const transicao = /42501|transi|conclu/i.test(error.message);
+    redirect(`${base}?erro=${transicao ? "transicao" : "salvar"}`);
+  }
+
+  // A auditoria da avaliação é gravada pelo TRIGGER, na mesma transação — não aqui. Uma policy de
+  // insert em `auditoria` para o avaliador garantiria só QUEM inseriu, não que o evento aconteceu.
+
+  revalidatePath("/admin/catalogo");
+  revalidatePath("/admin");
+  redirect(`${base}?ok=${resultado}`);
+}
+
+// Devolve uma avaliação concluída para `pendente`. SÓ ADMIN.
+//
+// Existe porque alguém vai clicar Aprovar por engano algum dia, e sem isto a única saída seria
+// alterar conteúdo artificialmente (para disparar a invalidação) ou ir ao SQL. Não apaga história:
+// a trilha já guardou status anterior, parecer, ator e data.
+//
+// ⚠ Em item de `formulario` PUBLICADO, reabrir despublica junto — na mesma operação. Sem isso o
+//   invariante `formulario + publicado ⇒ aprovada` bloquearia a própria reabertura.
+export async function reabrirAvaliacao(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  const base = `/admin/catalogo/${id}/avaliar`;
+
+  if (!avaliacaoLigada()) redirect(`${base}?erro=desligada`);
+
+  const { data: item } = await admin.supabase
+    .from("catalogo_solucoes")
+    .select("bloco, publicado")
+    .eq("id", id)
+    .maybeSingle();
+
+  const despublicar = item?.bloco === "formulario" && item?.publicado === true;
+
+  const { error } = await admin.supabase
+    .from("catalogo_solucoes")
+    .update(
+      despublicar
+        ? { status_avaliacao: "pendente", publicado: false }
+        : { status_avaliacao: "pendente" }
+    )
+    .eq("id", id);
+
+  if (error) redirect(`${base}?erro=salvar`);
+
+  revalidatePath("/admin/catalogo");
+  revalidatePath("/admin");
+  redirect(`${base}?ok=reaberta${despublicar ? "_despublicada" : ""}`);
+}
+
+// Devolve para a fila de avaliação um item que estava `aguardando_informacoes`. SÓ ADMIN, porque
+// só o admin enxerga o contato do responsável — o avaliador não vê submissão, e-mail nem telefone,
+// então ele não consegue pedir a informação a ninguém. O ciclo é: avaliador sinaliza → admin
+// contata e complementa → admin envia para reavaliação → avaliador retoma.
+//
+// Ação explícita, e não volta automática a cada edição: uma correção de vírgula não equivale a
+// "a informação pedida chegou".
+export async function enviarParaReavaliacao(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  const base = `/admin/catalogo/${id}/avaliar`;
+
+  if (!avaliacaoLigada()) redirect(`${base}?erro=desligada`);
+
+  const { error } = await admin.supabase
+    .from("catalogo_solucoes")
+    .update({ status_avaliacao: "pendente" })
+    .eq("id", id);
+
+  if (error) redirect(`${base}?erro=salvar`);
+
+  revalidatePath("/admin/catalogo");
+  revalidatePath("/admin");
+  redirect(`${base}?ok=reavaliacao`);
 }
 
 // Alterna publicado na fundação.
@@ -194,7 +292,7 @@ export async function criarCatalogo(formData: FormData) {
     .filter((m) => codes(MODALIDADES).includes(m));
   const publicar = formData.get("publicar") === "on";
 
-  const { error } = await admin.supabase.from("catalogo_solucoes").insert({
+  const { data: novo, error } = await admin.supabase.from("catalogo_solucoes").insert({
     titulo,
     orgao,
     descricao: String(formData.get("descricao") ?? "").trim() || null,
@@ -213,15 +311,20 @@ export async function criarCatalogo(formData: FormData) {
     licenca: String(formData.get("licenca") ?? "").trim() || null,
     impacto: String(formData.get("impacto") ?? "").trim() || null,
     link: String(formData.get("link") ?? "").trim() || null,
-    responsavel_nome: String(formData.get("responsavel_nome") ?? "").trim() || null,
-    responsavel_email: String(formData.get("responsavel_email") ?? "").trim() || null,
-    responsavel_cargo: String(formData.get("responsavel_cargo") ?? "").trim() || null,
     ...camposModelCard(formData),
-    revisado: true,         // cadastrado manualmente pelo admin = já curado
+    // `revisado` NÃO é mais escrito pelo app: virou derivado de `status_avaliacao`, carimbado
+    // pelo trigger. Cadastro manual nasce `pendente` como qualquer outro — o admin conclui a
+    // avaliação depois, com parecer. "Cadastrei" nunca foi o mesmo que "avaliei".
     publicado: publicar,
     fonte: "cadastro manual",
-  });
+  })
+  .select("id")
+  .single();
   if (error) redirect(`${base}?erro=salvar`);
+
+  // PII vai para a tabela lateral (migration 30). É o único lugar onde vale o .select("id") acima:
+  // sem o id não há como ligar as duas. As colunas antigas ficam intocadas até a migration 32.
+  await gravarResponsavel(admin.supabase, novo!.id as string, formData);
 
   // nivel_risco entra no detalhe de propósito: é a classificação que o banco atribui a uma
   // solução de IA de governo, e a que alguém pode vir a questionar depois.
@@ -303,12 +406,12 @@ export async function editarCatalogo(formData: FormData) {
     licenca: String(formData.get("licenca") ?? "").trim() || null,
     impacto: String(formData.get("impacto") ?? "").trim() || null,
     link: String(formData.get("link") ?? "").trim() || null,
-    responsavel_nome: String(formData.get("responsavel_nome") ?? "").trim() || null,
-    responsavel_email: String(formData.get("responsavel_email") ?? "").trim() || null,
-    responsavel_cargo: String(formData.get("responsavel_cargo") ?? "").trim() || null,
     ...camposModelCard(formData),
   }).eq("id", id);
   if (error) redirect(`${base}?erro=salvar`);
+
+  // PII na tabela lateral, não mais nas colunas de catalogo_solucoes.
+  await gravarResponsavel(admin.supabase, id, formData);
 
   await registrarAuditoria(admin, "edicao", {
     tabela: "catalogo_solucoes",
@@ -340,10 +443,9 @@ export async function promoverSubmissao(formData: FormData) {
   const orgao = String(formData.get("orgao") ?? "").trim();
   if (!titulo || !orgao) redirect(`${base}?erro=obrig`);
 
-  // id do admin para promovido_por
-  const { data: userData } = await admin.supabase.auth.getUser();
-  const promovido_por = userData.user?.id ?? null;
-
+  // `promovido_por` NÃO é mais gravado: redundante com a trilha, onde registrarAuditoria já grava
+  // `ator_email` na ação 'promocao'. A coluna é dropada na migration 32; parar de escrevê-la agora
+  // é pré-condição para aquele DROP não perder informação.
   const { error } = await admin.supabase.from("catalogo_solucoes").insert({
     titulo,
     descricao: String(formData.get("descricao") ?? "").trim() || null,
@@ -360,11 +462,11 @@ export async function promoverSubmissao(formData: FormData) {
     link: String(formData.get("link") ?? "").trim() || null,
     impacto: String(formData.get("impacto") ?? "").trim() || null,
     ...camposModelCard(formData),
-    revisado: false,
+    // `revisado` some daqui também: é derivado. Promoção nasce `pendente` pelo default da
+    // coluna — curadoria-first continua valendo, agora com estado explícito em vez de booleano.
     publicado: false,
     origem_submissao_id: submissaoId,
     promovido_em: new Date().toISOString(),
-    promovido_por,
     fonte: "promoção de submissão",
   });
 

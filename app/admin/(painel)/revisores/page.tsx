@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { labelOf, NIVEL_GOVERNO, AREA } from "@/lib/enums";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ function fmt(iso: string | null) {
 }
 
 export default async function AdminRevisoresPage() {
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data, error } = await supabase
     .from("revisores").select("*").order("criado_em", { ascending: false });
   const rows = (data ?? []) as Row[];

@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { convidarAdmin, revogarAdmin } from "@/lib/actions";
 
 const ERROS: Record<string, string> = {
@@ -22,7 +22,7 @@ export default async function AdminsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data } = await supabase.from("admins").select("*").order("criado_em", { ascending: true });
   const admins = (data ?? []) as Admin[];
 

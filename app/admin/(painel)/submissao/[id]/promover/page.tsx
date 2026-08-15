@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { promoverSubmissao } from "@/lib/actions-catalogo";
 import ModelCardCampos from "@/components/admin/ModelCardCampos";
 import {
@@ -28,7 +28,7 @@ export default async function PromoverPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data } = await supabase.from("submissoes").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const s = data as Sub;

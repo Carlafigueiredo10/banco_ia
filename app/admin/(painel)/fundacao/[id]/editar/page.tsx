@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { editarFundacao } from "@/lib/actions-catalogo";
 import FundacaoForm from "@/components/admin/FundacaoForm";
 
@@ -21,7 +21,7 @@ export default async function EditarFundacaoPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data } = await supabase.from("fundacao").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
 

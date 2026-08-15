@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { alternarFundacaoPublicado } from "@/lib/actions-catalogo";
 import { labelOf, FUNDACAO_TIPO } from "@/lib/enums";
 
@@ -13,7 +13,7 @@ export default async function AdminFundacaoPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data, error } = await supabase
     .from("fundacao")
     .select("*")

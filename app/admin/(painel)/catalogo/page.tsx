@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { alternarCatalogoFlag } from "@/lib/actions-catalogo";
-import { NIVEL_RISCO, BLOCO_ORIGEM, labelOf, type Opcao } from "@/lib/enums";
+import { requireAdmin } from "@/lib/auth-guard";
+import { definirPublicacao } from "@/lib/actions-catalogo";
+import { NIVEL_RISCO, BLOCO_ORIGEM, STATUS_AVALIACAO, labelOf, type Opcao } from "@/lib/enums";
 
 export const dynamic = "force-dynamic";
 
@@ -16,18 +16,29 @@ export default async function AdminCatalogoPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
-  const supabase = await createSupabaseServerClient();
+  // Guard na própria página: nav escondida não é autorização, e sem isto um avaliador veria a
+  // tela (a RLS devolveria o catálogo, mas os botões de admin apareceriam).
+  const admin = await requireAdmin();
 
-  let query = supabase.from("catalogo_solucoes").select("*"); // admin vê tudo (RLS admin_select) + PII
-  if (sp.pendentes === "1") query = query.eq("revisado", false);
+  let query = admin.supabase.from("catalogo_solucoes").select("*");
+  // Filtro por ESTADO DA AVALIAÇÃO, não pelo booleano `revisado` — que agora é derivado e
+  // significa apenas "concluída", incluindo reprovada.
+  if (sp.avaliacao) query = query.eq("status_avaliacao", sp.avaliacao);
   if (sp.bloco) query = query.eq("bloco", sp.bloco);
   const { data, error } = await query.order("criado_em", { ascending: false });
   const rows = (data ?? []) as Row[];
 
+  // PII vive em tabela lateral só-admin (migration 30): o avaliador nunca a lê, e para ele este
+  // select devolveria [] pela RLS — a coluna sumiria sozinha, sem `if`.
+  const { data: pii } = await admin.supabase
+    .from("catalogo_responsavel")
+    .select("catalogo_id, nome, cargo");
+  const porId = new Map((pii ?? []).map((p) => [p.catalogo_id as string, p]));
+
   const totais = {
     total: rows.length,
     publicadas: rows.filter((r) => r.publicado).length,
-    pendentes: rows.filter((r) => !r.revisado).length,
+    pendentes: rows.filter((r) => r.status_avaliacao === "pendente").length,
   };
 
   const exp = new URLSearchParams();
@@ -51,7 +62,13 @@ export default async function AdminCatalogoPage({
       </div>
 
       {sp.ok && <Banner cor="ok">{sp.ok === "promovida" ? "Submissão promovida ao catálogo." : "Alteração salva."}</Banner>}
-      {sp.erro && <Banner cor="erro">Não foi possível salvar.</Banner>}
+      {sp.erro && (
+        <Banner cor="erro">
+          {sp.erro === "publicacao_bloqueada"
+            ? "Não é possível publicar: solução de formulário precisa estar aprovada, e nada reprovado fica no ar."
+            : "Não foi possível salvar."}
+        </Banner>
+      )}
 
       {/* Filtros */}
       <form method="get" style={{ display: "flex", gap: 12, alignItems: "flex-end", background: "#f5f7fb", border: "1px solid #dde3ee", borderRadius: 8, padding: 12, marginBottom: 16, flexWrap: "wrap" }}>
@@ -62,9 +79,12 @@ export default async function AdminCatalogoPage({
             {FILTRO_BLOCO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </label>
-        <label style={{ fontSize: ".85rem", display: "flex", gap: 6, alignItems: "center", paddingBottom: 6 }}>
-          <input type="checkbox" name="pendentes" value="1" defaultChecked={sp.pendentes === "1"} />
-          Só pendentes de revisão
+        <label style={{ fontSize: ".85rem" }}>
+          <span style={{ display: "block", fontWeight: 600, marginBottom: 2 }}>Avaliação</span>
+          <select name="avaliacao" defaultValue={sp.avaliacao ?? ""} style={ctrl}>
+            <option value="">Todas</option>
+            {STATUS_AVALIACAO.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
         </label>
         <button type="submit" style={btnSm}>Filtrar</button>
         <Link href="/admin/catalogo" style={{ alignSelf: "center", color: "#1351b4" }}>Limpar</Link>
@@ -93,20 +113,20 @@ export default async function AdminCatalogoPage({
                 <td style={td}>{labelOf(BLOCO_ORIGEM, r.bloco)}</td>
                 <td style={td}>{r.nivel_risco ? labelOf(NIVEL_RISCO, r.nivel_risco) : "—"}</td>
                 <td style={{ ...td, color: "#555" }}>
-                  {r.responsavel_nome ?? "—"}
-                  {r.responsavel_cargo ? <span style={{ color: "#999" }}> · {r.responsavel_cargo}</span> : null}
+                  {porId.get(r.id)?.nome ?? "—"}
+                  {porId.get(r.id)?.cargo ? <span style={{ color: "#999" }}> · {porId.get(r.id)?.cargo}</span> : null}
                 </td>
                 <td style={td}>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     <Estado on={r.publicado} sim="Publicado" nao="Privado" />
-                    <Estado on={r.revisado} sim="Revisado" nao="Pendente revisão" />
+                    <Avaliacao status={r.status_avaliacao} />
                   </div>
                 </td>
                 <td style={td}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <Link href={`/admin/catalogo/${r.id}/editar`} style={{ ...btnSm, background: "#fff", color: "#1351b4", border: "1px solid #1351b4", textDecoration: "none" }}>Editar</Link>
-                    <Toggle id={r.id} campo="publicado" valor={!r.publicado} rotulo={r.publicado ? "Despublicar" : "Publicar"} />
-                    <Toggle id={r.id} campo="revisado" valor={!r.revisado} rotulo={r.revisado ? "Marcar pendente" : "Marcar revisado"} />
+                    <Link href={`/admin/catalogo/${r.id}/avaliar`} style={{ ...btnSm, background: "#fff", color: "#1351b4", border: "1px solid #1351b4", textDecoration: "none" }}>Avaliar</Link>
+                    <Publicar id={r.id} valor={!r.publicado} rotulo={r.publicado ? "Despublicar" : "Publicar"} />
                   </div>
                 </td>
               </tr>
@@ -124,11 +144,28 @@ function Estado({ on, sim, nao }: { on: boolean; sim: string; nao: string }) {
   return <span style={{ background: cor.bg, color: cor.f, borderRadius: 12, padding: "2px 8px", fontSize: ".72rem", fontWeight: 600 }}>{on ? sim : nao}</span>;
 }
 
-function Toggle({ id, campo, valor, rotulo }: { id: string; campo: "publicado" | "revisado"; valor: boolean; rotulo: string }) {
+// Selo do estado da avaliação. Substitui o antigo "Revisado / Pendente revisão", que agora
+// mentiria: `revisado=true` passou a significar "concluída", e reprovada também é concluída.
+function Avaliacao({ status }: { status: string }) {
+  const cores: Record<string, { bg: string; f: string }> = {
+    pendente: { bg: "#eef1f6", f: "#44546a" },
+    aguardando_informacoes: { bg: "#fff4e5", f: "#8a5300" },
+    aprovada: { bg: "#eafaef", f: "#155724" },
+    reprovada: { bg: "#fdecea", f: "#721c24" },
+  };
+  const c = cores[status] ?? cores.pendente;
   return (
-    <form action={alternarCatalogoFlag}>
+    <span style={{ background: c.bg, color: c.f, borderRadius: 12, padding: "2px 8px", fontSize: ".72rem", fontWeight: 600 }}>
+      {labelOf(STATUS_AVALIACAO, status)}
+    </span>
+  );
+}
+
+// Só publicação. Concluir avaliação tem tela própria (/avaliar), porque exige parecer.
+function Publicar({ id, valor, rotulo }: { id: string; valor: boolean; rotulo: string }) {
+  return (
+    <form action={definirPublicacao}>
       <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="campo" value={campo} />
       <input type="hidden" name="valor" value={String(valor)} />
       <button type="submit" style={btnSm}>{rotulo}</button>
     </form>

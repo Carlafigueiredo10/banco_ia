@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { BarrasH, BarrasV, CurvaCaptacao, CurvaDiaria, type Serie } from "@/components/admin/Graficos";
 import BrasilMapa from "@/components/admin/BrasilMapa";
 import {
@@ -22,7 +22,7 @@ function pct(parte: number, total: number): number {
 }
 
 export default async function IndicadoresPage() {
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data } = await supabase.from("submissoes").select("*");
   const rows = (data ?? []) as Sub[];
   const total = rows.length;

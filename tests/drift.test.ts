@@ -5,7 +5,7 @@ import {
   codes, LIMITES,
   NIVEL_GOVERNO, UFS, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO,
-  STATUS_MATURACAO, ESTAGIO,
+  STATUS_MATURACAO, ESTAGIO, PAPEL_ATOR, STATUS_AVALIACAO, ROTULO_PARECER,
   FUNDACAO_TIPO, FUNDACAO_ESFORCO, FUNDACAO_SOBERANIA, FUNDACAO_ESFORCO_PUBLICO,
   STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, TRANSFERENCIA_INTERNACIONAL,
@@ -51,6 +51,30 @@ function valoresSql16(col: string): string[] {
   const re = new RegExp(`${col} in \\(([^)]*)\\)`);
   const m = schema16.match(re);
   if (!m) throw new Error(`CHECK não encontrado para ${col} em 16_*`);
+  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+}
+// Migration 28 (perfil avaliador): CHECK de admins.papel e de catalogo_solucoes.status_avaliacao.
+const schema28 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/28_expand_avaliacao.sql"),
+  "utf8"
+);
+function valoresSql28(col: string): string[] {
+  const re = new RegExp(`${col} in \\(([^)]*)\\)`);
+  const m = schema28.match(re);
+  if (!m) throw new Error(`CHECK não encontrado para ${col} em 28_*`);
+  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
+}
+// Migration 29 recriou o CHECK de submissoes.status_maturacao com +'descartada'.
+// É a versão VIGENTE — o CHECK da 01 ficou histórico, e por isso status_maturacao saiu da lista
+// genérica que lê 01_schema_submissoes.sql (senão este teste falha, como de fato falhou).
+const schema29 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/29_status_descartada.sql"),
+  "utf8"
+);
+function valoresSql29(col: string): string[] {
+  const re = new RegExp(`${col} in \\(([^)]*)\\)`);
+  const m = schema29.match(re);
+  if (!m) throw new Error(`CHECK não encontrado para ${col} em 29_*`);
   return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
 // Migration 18 (model card): adiciona 'interesse' ao CHECK de acessos.evento e o CHECK de
@@ -104,7 +128,8 @@ describe("anti-drift: enums TS ↔ CHECK do SQL", () => {
     ["soberania", SOBERANIA],
     ["dado_sensivel", DADO_SENSIVEL],
     ["disposicao_aberto", DISPOSICAO_ABERTO],
-    ["status_maturacao", STATUS_MATURACAO],
+    // ⚠ `status_maturacao` NÃO entra aqui: a migration 29 recriou o CHECK com 'descartada', então
+    //   a fonte da verdade deixou de ser a 01. Tem `it` próprio abaixo, lendo a 29.
     ["estagio", ESTAGIO],
   ];
   for (const [col, opcoes] of casos) {
@@ -112,6 +137,28 @@ describe("anti-drift: enums TS ↔ CHECK do SQL", () => {
       expect(new Set(codes(opcoes))).toEqual(new Set(valoresSql(col)));
     });
   }
+});
+
+describe("Anti-drift: perfil avaliador e avaliação (migrations 28/29)", () => {
+  it("admins.papel: códigos batem (migration 28)", () => {
+    expect(new Set(codes(PAPEL_ATOR))).toEqual(new Set(valoresSql28("papel")));
+  });
+
+  it("catalogo.status_avaliacao: códigos batem (migration 28)", () => {
+    expect(new Set(codes(STATUS_AVALIACAO))).toEqual(new Set(valoresSql28("status_avaliacao")));
+  });
+
+  it("submissoes.status_maturacao: códigos batem (migration 29, com 'descartada')", () => {
+    expect(new Set(codes(STATUS_MATURACAO))).toEqual(new Set(valoresSql29("status_maturacao")));
+  });
+
+  // Todo estado precisa de rótulo de parecer: sem isso a tela mostraria a coluna sem dizer o que
+  // aquele texto significa naquele momento (conclusão? reprovação? informação pedida?).
+  it("todo status_avaliacao tem rótulo de parecer", () => {
+    for (const s of codes(STATUS_AVALIACAO)) {
+      expect(ROTULO_PARECER[s], `falta rótulo para ${s}`).toBeTruthy();
+    }
+  });
 });
 
 describe("anti-drift: enums das vitrines (item 5/7) TS ↔ CHECK do SQL (migration 11)", () => {

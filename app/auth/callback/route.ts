@@ -40,7 +40,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/admin/login?erro=1", url.origin));
   }
 
-  // Confirma sessão e verifica se o e-mail é admin (RLS só deixa admin se ver em `admins`)
+  // Confirma sessão e verifica se o e-mail tem acesso. A RLS de `admins` decide: um admin vê a
+  // própria linha por `admins_select_admin`, um avaliador por `admins_select_self` — as duas
+  // exigindo `revogado_em is null`. Quem não tem acesso não vê linha nenhuma.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -48,18 +50,23 @@ export async function GET(request: Request) {
   if (user?.email) {
     const { data } = await supabase
       .from("admins")
-      .select("email")
+      .select("email, papel")
       .eq("email", user.email)
       .maybeSingle();
 
     if (data) {
-      // Registra login admin bem-sucedido na trilha de auditoria
+      // Registra login bem-sucedido na trilha de auditoria
       await supabase.from("auditoria").insert({ ator_email: user.email, acao: "login" });
-      return NextResponse.redirect(new URL(destino, url.origin));
+
+      // Avaliador não tem acesso a `/admin` (a lista de submissões é admin-only) — mandá-lo para
+      // lá significaria login bem-sucedido seguido de "acesso negado". Vai direto ao catálogo,
+      // que é a tela de trabalho dele.
+      const alvo = data.papel === "avaliador" ? "/admin/catalogo" : destino;
+      return NextResponse.redirect(new URL(alvo, url.origin));
     }
   }
 
-  // Autenticou mas não é admin: encerra a sessão e manda para acesso negado
+  // Autenticou mas não tem acesso: encerra a sessão e manda para acesso negado
   await supabase.auth.signOut();
   return NextResponse.redirect(new URL("/admin/acesso-negado", url.origin));
 }

@@ -65,16 +65,37 @@ export async function GET(request: Request) {
   const bloco = url.searchParams.get("bloco");
   const pendentes = url.searchParams.get("pendentes") === "1";
 
-  let query = admin.supabase.from("catalogo_solucoes").select("*"); // admin vê tudo (inclui PII)
+  let query = admin.supabase.from("catalogo_solucoes").select("*");
   if (bloco && codes(BLOCO_ORIGEM).includes(bloco)) query = query.eq("bloco", bloco);
-  if (pendentes) query = query.eq("revisado", false);
+  // `pendentes=1` passa a significar "avaliação não concluída" via status, não pelo booleano
+  // `revisado` — que agora é derivado e inclui reprovada.
+  if (pendentes) query = query.eq("status_avaliacao", "pendente");
   const { data, error } = await query.order("criado_em", { ascending: false });
   if (error) return new Response("Erro ao gerar export.", { status: 500 });
 
-  const linhas = (data ?? []).map(paraExibicao);
+  // PII vem da tabela lateral (migration 30). Manter as 3 colunas no CSV é deliberado: retirá-las
+  // seria regressão silenciosa num arquivo que a coordenação usa, e o consumidor aqui é admin-only
+  // e auditado. Para um avaliador este select devolveria [] pela RLS — mas ele nem chega aqui,
+  // porque getAdmin() já o barrou.
+  const { data: pii } = await admin.supabase
+    .from("catalogo_responsavel")
+    .select("catalogo_id, nome, email, cargo");
+  const porId = new Map((pii ?? []).map((p) => [p.catalogo_id as string, p]));
+
+  const linhas = (data ?? []).map((r) =>
+    paraExibicao({
+      ...r,
+      responsavel_nome: porId.get(r.id)?.nome ?? r.responsavel_nome ?? null,
+      responsavel_email: porId.get(r.id)?.email ?? r.responsavel_email ?? null,
+      responsavel_cargo: porId.get(r.id)?.cargo ?? r.responsavel_cargo ?? null,
+    })
+  );
   const csv = toCSV(linhas, COLUNAS);
 
-  await registrarAuditoria(admin, "export_csv", { tabela: "catalogo_solucoes", bloco, pendentes, linhas: linhas.length });
+  // `perfil` no detalhe: deixa registrado por escrito que nenhum export saiu por perfil avaliador.
+  await registrarAuditoria(admin, "export_csv", {
+    tabela: "catalogo_solucoes", bloco, pendentes, linhas: linhas.length, perfil: "admin",
+  });
 
   return new Response(csv, {
     headers: {

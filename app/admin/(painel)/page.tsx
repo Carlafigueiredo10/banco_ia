@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { lerFiltros, selecionarSubmissoes, CHAVES_FILTRO } from "@/lib/query";
 import {
   STATUS_MATURACAO, ESTAGIO, TIPO_ATIVO, AREA, UFS, ABERTA, SOBERANIA,
-  DADO_SENSIVEL, NIVEL_GOVERNO, labelOf, type Opcao,
+  DADO_SENSIVEL, NIVEL_GOVERNO, STATUS_AVALIACAO, labelOf, type Opcao,
 } from "@/lib/enums";
 import { StatusBadge, EstagioBadge } from "@/components/admin/Badge";
 
@@ -33,7 +33,7 @@ export default async function ListagemPage({
 }) {
   const params = await searchParams;
   const filtros = lerFiltros(params);
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireAdmin(); // admin-only: nav escondida não é autorização
   const { data, error } = await selecionarSubmissoes(supabase, filtros);
   const rows = (data ?? []) as Row[];
 
@@ -42,8 +42,76 @@ export default async function ListagemPage({
   if (filtros.q) qs.set("q", filtros.q);
   const exportHref = `/api/export?${qs.toString()}`;
 
+  // Filas de avaliação — DERIVADAS DO ESTADO, sem tabela de notificações, sem cron, sem e-mail.
+  // O estado atual já é a notificação: a condição de cada fila é a própria pendência.
+  const [aguardando, aprovadasNaoPublicadas, atividade] = await Promise.all([
+    supabase
+      .from("catalogo_solucoes")
+      .select("id, titulo, atualizado_em")
+      .eq("status_avaliacao", "aguardando_informacoes")
+      .order("atualizado_em", { ascending: true }),
+    supabase
+      .from("catalogo_solucoes")
+      .select("id, titulo")
+      .eq("status_avaliacao", "aprovada")
+      .eq("publicado", false),
+    // "Atividade recente" existe porque as filas são ESTADO e por isso perdem um caso: um item
+    // já publicado que é aprovado sai de todas elas e não apareceria em lugar nenhum — a promessa
+    // "o admin é avisado ao fim de toda avaliação" seria falsa.
+    // Limite por QUANTIDADE, não por período: ordenar só por data nunca faz nada sumir da lista.
+    supabase
+      .from("auditoria")
+      .select("ator_email, criado_em, detalhe")
+      .eq("acao", "avaliacao")
+      .order("criado_em", { ascending: false })
+      .limit(20),
+  ]);
+
+  const filaAguardando = aguardando.data ?? [];
+  const filaAprovadas = aprovadasNaoPublicadas.data ?? [];
+  // Só conclusões e solicitações; mudança editorial de `bloco` também é auditada como 'avaliacao'
+  // e apareceria aqui como se fosse veredito.
+  const eventos = (atividade.data ?? []).filter((e) => {
+    const d = e.detalhe as Record<string, string> | null;
+    return d?.evento === "status_avaliacao" && d?.status_novo;
+  });
+
   return (
     <>
+      {(filaAguardando.length > 0 || filaAprovadas.length > 0 || eventos.length > 0) && (
+        <section style={{ border: "1px solid #dde3ee", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+          <h2 style={{ fontSize: "1.05rem", margin: "0 0 10px" }}>Avaliação</h2>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: eventos.length ? 14 : 0 }}>
+            <Fila n={filaAguardando.length} rotulo="aguardando informações" href="/admin/catalogo?avaliacao=aguardando_informacoes" cor="#8a5300" bg="#fff4e5" />
+            <Fila n={filaAprovadas.length} rotulo="aprovadas não publicadas" href="/admin/catalogo?avaliacao=aprovada" cor="#155724" bg="#eafaef" />
+          </div>
+
+          {eventos.length > 0 && (
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: ".88rem", color: "#1351b4" }}>
+                Atividade recente ({eventos.length})
+              </summary>
+              <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: ".85rem", color: "#444" }}>
+                {eventos.map((e, i) => {
+                  const d = e.detalhe as Record<string, string>;
+                  return (
+                    <li key={i} style={{ marginBottom: 3 }}>
+                      <strong>{labelOf(STATUS_AVALIACAO, d.status_novo)}</strong>
+                      {" · "}{e.ator_email}
+                      {" · "}{new Date(e.criado_em as string).toLocaleDateString("pt-BR")}
+                    </li>
+                  );
+                })}
+              </ul>
+              <p style={{ fontSize: ".78rem", color: "#777", marginBottom: 0 }}>
+                Visibilidade, não confirmação de leitura — o sistema não registra quem tomou ciência.
+              </p>
+            </details>
+          )}
+        </section>
+      )}
+
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Submissões</h1>
         <span style={{ color: "#666" }}>{rows.length} resultado(s)</span>
@@ -128,3 +196,16 @@ export default async function ListagemPage({
 const selectStyle: React.CSSProperties = { width: "100%", padding: "6px 8px", border: "1px solid #999", borderRadius: 4, background: "#fff" };
 const th: React.CSSProperties = { padding: "8px 10px", whiteSpace: "nowrap" };
 const td: React.CSSProperties = { padding: "8px 10px", verticalAlign: "top" };
+
+// Contador de fila: o número É a notificação. Zero não aparece — fila vazia não é pendência.
+function Fila({ n, rotulo, href, cor, bg }: { n: number; rotulo: string; href: string; cor: string; bg: string }) {
+  if (n === 0) return null;
+  return (
+    <Link
+      href={href}
+      style={{ background: bg, color: cor, border: `1px solid ${cor}33`, borderRadius: 8, padding: "8px 14px", textDecoration: "none", fontSize: ".88rem" }}
+    >
+      <strong style={{ fontSize: "1.15rem" }}>{n}</strong> {rotulo}
+    </Link>
+  );
+}
