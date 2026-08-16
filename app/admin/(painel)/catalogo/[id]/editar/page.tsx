@@ -8,6 +8,10 @@ export const dynamic = "force-dynamic";
 
 const ERROS: Record<string, string> = {
   obrig: "Título e órgão são obrigatórios.",
+  publicacao_bloqueada:
+    "A publicação e o estado da avaliação ficaram incompatíveis. Despublique a solução e tente de novo.",
+  transicao: "O estado da avaliação não permite esta edição.",
+  avaliador: "Esta operação é do perfil administrador.",
   salvar: "Não foi possível salvar.",
 };
 
@@ -46,9 +50,25 @@ export default async function EditarCatalogoPage({
       <Link href="/admin/catalogo" style={{ color: "#1351b4" }}>← Voltar ao Catálogo</Link>
       <h1 style={{ fontSize: "1.5rem", margin: "8px 0 12px" }}>Editar: {data.titulo}</h1>
       {sp.erro && <Banner>{ERROS[sp.erro] ?? "Erro."}</Banner>}
+
+      {/* Avisar ANTES, não depois. Salvar conteúdo de uma solução já avaliada revoga o veredito:
+          uma aprovação não cobre um objeto que mudou. E, desde a migration 32, leva junto a
+          publicação — o que é o efeito mais consequente desta tela. */}
+      {(data.status_avaliacao === "aprovada" || data.status_avaliacao === "reprovada") && (
+        <Aviso>
+          Esta solução já foi avaliada ({data.status_avaliacao === "aprovada" ? "aprovada" : "reprovada"}).
+          Salvar qualquer alteração de conteúdo <strong>revoga a avaliação</strong> e devolve o item
+          para a fila, apagando o parecer da linha — o texto continua na trilha de auditoria.
+          {data.publicado && <> A solução <strong>sairá do ar</strong> até ser reavaliada e publicada de novo.</>}
+        </Aviso>
+      )}
       <CatalogoForm action={editarCatalogo} defaults={defaults} modo="editar" />
     </>
   );
+}
+
+function Aviso({ children }: { children: React.ReactNode }) {
+  return <p style={{ background: "#fff4e5", border: "1px solid #ffd9a0", color: "#8a5300", borderRadius: 6, padding: "10px 14px", margin: "12px 0", fontSize: ".9rem" }}>{children}</p>;
 }
 
 function Banner({ children }: { children: React.ReactNode }) {

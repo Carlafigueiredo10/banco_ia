@@ -10,6 +10,7 @@ import {
   STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, TRANSFERENCIA_INTERNACIONAL,
 } from "../lib/enums";
+import { camposModelCard } from "../lib/model-card";
 import { EVENTOS } from "../lib/metrica";
 import { calcEstagio, type PontoAtual, type JaUsado } from "../lib/estagio";
 
@@ -157,6 +158,75 @@ describe("Anti-drift: perfil avaliador e avaliação (migrations 28/29)", () => 
   it("todo status_avaliacao tem rótulo de parecer", () => {
     for (const s of codes(STATUS_AVALIACAO)) {
       expect(ROTULO_PARECER[s], `falta rótulo para ${s}`).toBeTruthy();
+    }
+  });
+});
+
+// =====================================================================================
+// Allowlist do avaliador e lista de invalidação — o trigger `governanca_catalogo()`.
+//
+// ⚠ Este bloco NÃO EXISTIA. A migration 31 e o AGENTS.md os dois afirmavam, por escrito, que
+//   `tests/drift.test.ts` comparava a allowlist com `camposModelCard()` nos dois sentidos. Não
+//   comparava — não havia uma linha sequer sobre isso. É o mesmo padrão que o AGENTS.md registra
+//   como causa de A-1 e A-5: a garantia estava na documentação, não no teste.
+//
+// A migration 32 é a versão VIGENTE da função (a 31 virou histórico).
+// =====================================================================================
+const schema32 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/32_corrige_governanca_avaliacao.sql"),
+  "utf8"
+);
+function arraySql32(nome: string): string[] {
+  const re = new RegExp(`${nome}\\s+constant text\\[\\]\\s*:=\\s*array\\[([^\\]]*)\\]`);
+  const m = schema32.match(re);
+  if (!m) throw new Error(`array \`${nome}\` não encontrado em 32_*`);
+  // Tira os comentários antes de garimpar os literais: um `--` com apóstrofo viraria coluna.
+  return [...m[1].replace(/--[^\n]*/g, "").matchAll(/'([^']+)'/g)].map((x) => x[1]);
+}
+
+describe("Anti-drift: trigger de governança da avaliação (migration 32)", () => {
+  // Os cinco que NÃO vêm do formulário do Model Card, mas o avaliador precisa poder gravar.
+  // `atualizado_em` está aí porque `trg_catalogo_atualizado_em` é BEFORE e dispara antes desta
+  // função — sem ele, TODO update do avaliador falharia com 42501.
+  const TECNICOS = ["nivel_risco", "supervisao", "parecer", "status_avaliacao", "atualizado_em"];
+
+  const modelCard = Object.keys(camposModelCard(new FormData()));
+  const allowlist = arraySql32("colunas_avaliador");
+  const naoInvalidam = arraySql32("colunas_nao_invalidam");
+
+  // IGUALDADE, não subconjunto, e nos dois sentidos: campo que falta no SQL vira 403 numa tela
+  // que parece funcionar; campo a mais é privilégio silencioso.
+  it("allowlist do avaliador = camposModelCard() + os cinco técnicos", () => {
+    expect(new Set(allowlist)).toEqual(new Set([...modelCard, ...TECNICOS]));
+  });
+
+  it("allowlist não tem duplicata (duplicata esconde erro de edição)", () => {
+    expect(allowlist.length).toBe(new Set(allowlist).size);
+  });
+
+  // `publicado` é a fronteira entre avaliar e publicar. Se algum dia entrar na allowlist, o
+  // avaliador passa a tirar e pôr solução no ar por conta própria.
+  it("allowlist não concede publicação nem autoria", () => {
+    for (const proibida of ["publicado", "revisado", "revisado_por", "revisado_em", "bloco", "titulo"]) {
+      expect(allowlist, `${proibida} não pode estar na allowlist do avaliador`).not.toContain(proibida);
+    }
+  });
+
+  // A lista de invalidação é de EXCLUSÃO (migration 32): o que não está nela invalida. Os campos
+  // que a própria função reescreve TÊM de estar excluídos — senão a reabertura conta como
+  // invalidação de conteúdo, `v_invalidada` fica true e a exigência de `v_admin` é dispensada:
+  // o avaliador reabriria avaliação concluída mandando só o status.
+  it("colunas_nao_invalidam exclui tudo que o próprio trigger reescreve", () => {
+    for (const tecnica of ["status_avaliacao", "revisado", "revisado_por", "revisado_em", "atualizado_em"]) {
+      expect(naoInvalidam, `${tecnica} precisa estar excluído da invalidação`).toContain(tecnica);
+    }
+  });
+
+  // O espelho: nenhum campo de CONTEÚDO pode estar excluído, ou o avaliador altera o objeto
+  // avaliado sem derrubar a própria avaliação que deu.
+  it("nenhum campo do Model Card escapa da invalidação", () => {
+    for (const campo of [...modelCard, "parecer", "titulo", "descricao", "orgao", "link", "soberania"]) {
+      expect(naoInvalidam, `${campo} não pode estar fora da invalidação`).not.toContain(campo);
     }
   });
 });

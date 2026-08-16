@@ -29,9 +29,29 @@ function lista(formData: FormData, campo: string): string[] {
     .filter(Boolean);
 }
 
+// Traduz o erro do banco em CÓDIGO de mensagem. As regras vivem no trigger e nos CHECKs
+// (migrations 31/32); aqui só damos nome a elas para não jogar 42501/23514 na cara de ninguém.
+//
+// ⚠ Casa pelo NOME DA CONSTRAINT e pelo texto das mensagens que nós mesmos escrevemos — nunca por
+//   `code` sozinho. Todo 23514 virar "publicação bloqueada" transformaria a violação de qualquer
+//   CHECK de enum na mensagem errada. O default é "salvar": desconhecido é desconhecido.
+function traduzErro(error: { code?: string; message?: string; details?: string } | null): string {
+  if (!error) return "salvar";
+  const m = `${error.message ?? ""} ${error.details ?? ""}`;
+  if (/catalogo_publicacao_invariante|reprovada não pode ser publicada/i.test(m)) {
+    return "publicacao_bloqueada";
+  }
+  if (/perfil avaliador/i.test(m)) return "avaliador";
+  if (/catalogo_avaliacao_consistente|veredito|reabre|aguardando informações|avaliar/i.test(m)) {
+    return "transicao";
+  }
+  if (error.code === "42501") return "transicao";
+  return "salvar";
+}
+
 // PII do responsável vai para `catalogo_responsavel` (migration 30), nunca mais para as colunas
-// de `catalogo_solucoes` — que a migration 32 vai dropar. Só admin: a RLS da tabela lateral não
-// devolve nem aceita linha de avaliador.
+// de `catalogo_solucoes` — que a migration do DROP vai remover. Só admin: a RLS da tabela lateral
+// não devolve nem aceita linha de avaliador.
 // Upsert porque a chave é o próprio catalogo_id (1:1). Se os três vierem vazios, não cria linha.
 type SupabaseCli = Awaited<ReturnType<typeof getAdmin>> extends infer T
   ? T extends { supabase: infer S } ? S : never
@@ -66,12 +86,10 @@ export async function definirPublicacao(formData: FormData) {
     .update({ publicado: valor })
     .eq("id", id);
 
-  // O banco recusa publicar item de `formulario` sem aprovação e qualquer item reprovado
-  // (invariantes da migration 31). Traduz para linguagem de gente em vez de mostrar 42501/23514.
-  if (error) {
-    const bloqueio = /invariante|reprovada|aprovada|42501|23514/i.test(error.message);
-    redirect(`/admin/catalogo?erro=${bloqueio ? "publicacao_bloqueada" : "salvar"}`);
-  }
+  // O banco recusa publicar item de `formulario` sem aprovação (CHECK, 23514) e qualquer item
+  // reprovado (trigger, 42501 — na 31 isto era coerção SILENCIOSA: o update "dava certo", o item
+  // não ia ao ar e a trilha registrava uma publicação que não aconteceu).
+  if (error) redirect(`/admin/catalogo?erro=${traduzErro(error)}`);
 
   // Trilha: este é o botão que expõe (ou retira) uma solução do site público. É a ação de
   // curadoria com maior consequência externa.
@@ -120,11 +138,8 @@ export async function concluirAvaliacao(formData: FormData) {
     .update({ ...camposModelCard(formData), status_avaliacao: resultado, parecer })
     .eq("id", id);
 
-  if (error) {
-    // 42501 vem do trigger (transição inválida, coluna fora da allowlist, avaliação já concluída).
-    const transicao = /42501|transi|conclu/i.test(error.message);
-    redirect(`${base}?erro=${transicao ? "transicao" : "salvar"}`);
-  }
+  // 42501 vem do trigger (transição inválida, coluna fora da allowlist, avaliação já concluída).
+  if (error) redirect(`${base}?erro=${traduzErro(error)}`);
 
   // A auditoria da avaliação é gravada pelo TRIGGER, na mesma transação — não aqui. Uma policy de
   // insert em `auditoria` para o avaliador garantiria só QUEM inseriu, não que o evento aconteceu.
@@ -140,8 +155,11 @@ export async function concluirAvaliacao(formData: FormData) {
 // alterar conteúdo artificialmente (para disparar a invalidação) ou ir ao SQL. Não apaga história:
 // a trilha já guardou status anterior, parecer, ator e data.
 //
-// ⚠ Em item de `formulario` PUBLICADO, reabrir despublica junto — na mesma operação. Sem isso o
-//   invariante `formulario + publicado ⇒ aprovada` bloquearia a própria reabertura.
+// ⚠ Reabrir DESPUBLICA, em qualquer bloco — quem perde o veredito sai do ar. Quem faz isso é o
+//   TRIGGER (migration 32), não esta função: até a 31, cada chamador tinha de reconciliar
+//   `publicado` na mão, e só este aqui reconciliava. Toda edição de conteúdo por outra porta
+//   ficava com 23514 em `formulario`, ou deixava o item no ar sem aprovação nos demais blocos.
+//   A leitura abaixo existe só para a MENSAGEM; a regra é do banco.
 export async function reabrirAvaliacao(formData: FormData) {
   const admin = await getAdmin();
   if (!admin) redirect("/admin/login");
@@ -153,19 +171,15 @@ export async function reabrirAvaliacao(formData: FormData) {
 
   const { data: item } = await admin.supabase
     .from("catalogo_solucoes")
-    .select("bloco, publicado")
+    .select("publicado")
     .eq("id", id)
     .maybeSingle();
 
-  const despublicar = item?.bloco === "formulario" && item?.publicado === true;
+  const despublicar = item?.publicado === true;
 
   const { error } = await admin.supabase
     .from("catalogo_solucoes")
-    .update(
-      despublicar
-        ? { status_avaliacao: "pendente", publicado: false }
-        : { status_avaliacao: "pendente" }
-    )
+    .update({ status_avaliacao: "pendente" })
     .eq("id", id);
 
   if (error) redirect(`${base}?erro=salvar`);
@@ -320,7 +334,11 @@ export async function criarCatalogo(formData: FormData) {
   })
   .select("id")
   .single();
-  if (error) redirect(`${base}?erro=salvar`);
+  // Combinação impossível oferecida pelo próprio formulário: bloco='formulario' + "Publicar
+  // imediatamente". Toda linha nasce `pendente` (trigger), e o invariante exige aprovação — então
+  // o par nunca poderia dar certo. Sem tradução, isso virava "Não foi possível salvar." e a pessoa
+  // procurava o campo obrigatório errado.
+  if (error) redirect(`${base}?erro=${traduzErro(error)}`);
 
   // PII vai para a tabela lateral (migration 30). É o único lugar onde vale o .select("id") acima:
   // sem o id não há como ligar as duas. As colunas antigas ficam intocadas até a migration 32.
@@ -375,6 +393,12 @@ export async function editarFundacao(formData: FormData) {
 }
 
 // Edição de solução do catálogo (conteúdo; publicado/revisado pela lista).
+//
+// ⚠ Mudar conteúdo de uma solução JÁ AVALIADA revoga o veredito (o trigger devolve para
+//   `pendente`, zera o parecer e, desde a migration 32, retira do ar). Isso é deliberado — uma
+//   aprovação não cobre um objeto que mudou — mas precisa APARECER: até aqui a tela dizia apenas
+//   "Alteração salva.", e em `bloco='formulario'` nem salvava, devolvia 23514 traduzido como
+//   "Não foi possível salvar." Por isso lemos o estado antes e depois.
 export async function editarCatalogo(formData: FormData) {
   const admin = await getAdmin();
   if (!admin) redirect("/admin/login");
@@ -384,6 +408,12 @@ export async function editarCatalogo(formData: FormData) {
   const titulo = String(formData.get("titulo") ?? "").trim();
   const orgao = String(formData.get("orgao") ?? "").trim();
   if (!titulo || !orgao) redirect(`${base}?erro=obrig`);
+
+  const { data: antes } = await admin.supabase
+    .from("catalogo_solucoes")
+    .select("status_avaliacao, publicado")
+    .eq("id", id)
+    .maybeSingle();
 
   const modalidades = formData.getAll("modalidades").map(String)
     .filter((m) => codes(MODALIDADES).includes(m));
@@ -408,7 +438,7 @@ export async function editarCatalogo(formData: FormData) {
     link: String(formData.get("link") ?? "").trim() || null,
     ...camposModelCard(formData),
   }).eq("id", id);
-  if (error) redirect(`${base}?erro=salvar`);
+  if (error) redirect(`${base}?erro=${traduzErro(error)}`);
 
   // PII na tabela lateral, não mais nas colunas de catalogo_solucoes.
   await gravarResponsavel(admin.supabase, id, formData);
@@ -420,8 +450,25 @@ export async function editarCatalogo(formData: FormData) {
     nivel_risco: opcional(formData, "nivel_risco", codes(NIVEL_RISCO)),
   });
 
+  // O que o BANCO decidiu, não o que a aplicação supôs. A invalidação é do trigger, e depende de
+  // quais colunas realmente mudaram — reconstruir essa regra aqui seria uma segunda verdade.
+  const { data: depois } = await admin.supabase
+    .from("catalogo_solucoes")
+    .select("status_avaliacao, publicado")
+    .eq("id", id)
+    .maybeSingle();
+
+  const invalidou =
+    antes?.status_avaliacao !== depois?.status_avaliacao && depois?.status_avaliacao === "pendente";
+  const saiuDoAr = antes?.publicado === true && depois?.publicado === false;
+
   revalidatePath("/admin/catalogo");
-  redirect("/admin/catalogo?ok=1");
+  revalidatePath("/catalogo");
+  redirect(
+    `/admin/catalogo?ok=${
+      invalidou ? (saiuDoAr ? "invalidada_despublicada" : "invalidada") : "1"
+    }`
+  );
 }
 
 // Promove uma submissão para o catálogo: COPIA (não move). A submissão original

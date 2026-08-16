@@ -16,6 +16,10 @@ const ERROS: Record<string, string> = {
   resultado: "Resultado inválido.",
   transicao:
     "Esta avaliação já foi concluída. Peça a um administrador que a reabra antes de avaliar de novo.",
+  avaliador:
+    "O perfil avaliador não altera solução com avaliação concluída. Peça a um administrador que reabra a avaliação.",
+  publicacao_bloqueada:
+    "A publicação e o estado da avaliação ficaram incompatíveis. Fale com um administrador.",
   desligada: "A avaliação ainda não foi liberada nesta instalação.",
   salvar: "Não foi possível salvar.",
 };
@@ -58,17 +62,29 @@ export default async function AvaliarPage({
   // Parecer/solicitação ANTERIOR vem da trilha, não da coluna: ao voltar para `pendente` o banco
   // zera `parecer` — é isso que faz a exigência de parecer novo ser real, e não apenas herdar o
   // texto de quem pediu informação. O histórico sobrevive porque o trigger grava o snapshot.
+  // ⚠ O filtro por item é do BANCO (`contains`), não do JS: com `.limit(5)` global e filtro
+  //   depois, o parecer anterior sumia da tela sempre que houvesse atividade em outros itens.
   const { data: eventos } = await ator.supabase
     .from("auditoria")
     .select("ator_email, criado_em, detalhe")
     .eq("acao", "avaliacao")
+    .contains("detalhe", { tabela: "catalogo_solucoes", id })
     .order("criado_em", { ascending: false })
-    .limit(5);
+    .limit(10);
 
+  // ⚠ O evento mais recente NÃO é o autor do parecer. Voltar para `pendente` (reabertura,
+  //   invalidação, "enviar para reavaliação") grava um evento cujo snapshot é o `OLD.parecer` —
+  //   o texto de OUTRA pessoa — com o `ator_email` de quem reabriu e `status_novo='pendente'`.
+  //   Usar historico[0] atribuía o parecer a quem reabriu e o rotulava "Pendente".
+  //   O autor é o último evento que registrou um VEREDITO (ou uma solicitação).
   const historico = (eventos ?? []).filter(
-    (e) => (e.detalhe as Record<string, unknown> | null)?.id === id
+    (e) => (e.detalhe as Record<string, unknown> | null)?.evento === "status_avaliacao"
   );
-  const anterior = historico[0]?.detalhe as Record<string, string> | undefined;
+  const eventoAnterior = historico.find((e) => {
+    const d = e.detalhe as Record<string, string> | null;
+    return !!d?.parecer && d.status_novo !== "pendente";
+  });
+  const anterior = eventoAnterior?.detalhe as Record<string, string> | undefined;
 
   return (
     <>
@@ -115,7 +131,9 @@ export default async function AvaliarPage({
             <form action={reabrirAvaliacao}>
               <input type="hidden" name="id" value={id} />
               <button type="submit" style={btnSecundario}>Reabrir avaliação</button>
-              {item.bloco === "formulario" && item.publicado && (
+              {/* Desde a migration 32 vale para QUALQUER bloco: perder o veredito tira do ar.
+                  Antes só `formulario` era avisado, porque só nele o invariante barrava. */}
+              {item.publicado && (
                 <span style={{ marginLeft: 10, color: "#8a5300", fontSize: ".85rem" }}>
                   Reabrir vai retirar esta solução do ar.
                 </span>
@@ -154,7 +172,10 @@ export default async function AvaliarPage({
             <section style={{ ...caixa, background: "#f5f7fb" }}>
               <h2 style={{ fontSize: ".95rem", marginTop: 0, color: "#44546a" }}>
                 Parecer anterior — {labelOf(STATUS_AVALIACAO, anterior.status_novo ?? "")}
-                {historico[0]?.ator_email ? ` · ${historico[0].ator_email}` : ""}
+                {eventoAnterior?.ator_email ? ` · ${eventoAnterior.ator_email}` : ""}
+                {eventoAnterior?.criado_em
+                  ? ` · ${new Date(eventoAnterior.criado_em as string).toLocaleDateString("pt-BR")}`
+                  : ""}
               </h2>
               <p style={{ whiteSpace: "pre-wrap", margin: 0, color: "#44546a" }}>{anterior.parecer}</p>
             </section>

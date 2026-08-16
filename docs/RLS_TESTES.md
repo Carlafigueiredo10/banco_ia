@@ -2,7 +2,8 @@
 
 > Projeto Supabase `bbsia` (`mvsscsjzaedoqfcobqtt`), região `sa-east-1`.
 > Executado em 2026-06-09 via MCP (`execute_sql` com `set role` / `set request.jwt.claims`).
-> Reexecutado em 2026-07-28 (métrica) e **2026-08-11 (auditoria GRC, migrations 21–26)**.
+> Reexecutado em 2026-07-28 (métrica), 2026-08-11 (auditoria GRC, migrations 21–26) e
+> **2026-08-15 (perfil avaliador e avaliação formal, migrations 28–31)**.
 > **Todos os casos passaram.** Repetir após qualquer mudança em policies/grants antes de subir produção.
 
 > ⚠ **Esta matriz cobria só `submissoes`, `admins`, `auditoria`, `acessos` e `rate_limit`.**
@@ -177,6 +178,94 @@ operacional num sistema que se propõe a ter trilha imutável.
 > foi executada** — migration aplicada é histórico, e alterar o arquivo criaria divergência entre
 > o que produção rodou e o que o repositório afirma. O estado final foi validado (26 e 11 colunas,
 > nada além). **Da migration 26 em diante, revogação é sempre dirigida ao privilégio específico.**
+
+## Perfil `avaliador` (migrations 28/31)
+
+> Executado em 2026-08-15, contra produção, com `begin; set local role authenticated;
+> set local request.jwt.claims …; rollback;`. Avaliador de teste criado e desfeito na transação.
+
+**O que o perfil vê** — contrato completo, medido:
+
+| Papel | catálogo | `catalogo_responsavel` | submissoes | revisores | acessos/fundacao | admins |
+|---|---|---|---|---|---|---|
+| `avaliador` | **88** (inclusive não publicado) | **0** | **0** | **0** | **0** | **1** (só a própria linha) |
+| admin | 88 | 80 | 76 | 27 | tudo | todas |
+
+A linha própria em `admins` é o que permite o avaliador **logar** (`admins_select_self`, migration
+28) — sem ela o callback faria `signOut()` e o painel entraria em loop de redirect. A policy exige
+`revogado_em is null`, senão reabriria o achado M-9.
+
+**Guarda de coluna e transições** (trigger `trg_catalogo_governanca`):
+
+| # | Caso | Esperado | Resultado |
+|---|---|---|---|
+| c1 | avaliador conclui **e** edita Model Card na mesma sentença | passa, autoria do JWT | ✅ `revisado_por` = ator, `revisado_em` carimbado |
+| c2 | avaliador altera `publicado` | 42501 | ✅ |
+| c3 | update misto (campo permitido + `titulo`) | 42501 na sentença inteira | ✅ |
+| c4 | avaliador forja `revisado_por` | 42501 | ✅ (a coluna está fora da allowlist) |
+| n1 | avaliador solicita informações | **não** carimba autoria | ✅ `revisado=false`, autoria nula |
+| n10 | reescrever a solicitação já emitida | 42501 | ✅ vale inclusive para admin |
+| n6 | avaliador devolve item para a fila | 42501 | ✅ é ato de admin |
+| n14 | admin reabre formulário publicado (despublicando junto) | passa | ✅ parecer e autoria zerados |
+| n15 | avaliador reabre conclusão | 42501 | ✅ |
+| f | `service_role` tenta avaliar (sem e-mail no JWT) | 42501 | ✅ "carga automatizada não avalia" |
+| f4 | INSERT nascendo "aprovado" com autoria forjada | vira `pendente` | ✅ parecer e autoria nulos |
+| e0 | reprovar item **publicado** | passa **e despublica** | ✅ |
+| e | publicar `formulario` sem aprovação | 23514 | ✅ invariante de tabela |
+
+⚠ **Achado aberto (n3):** `aprovada → reprovada` **direto não dá 42501** — vira `pendente` em
+silêncio. `parecer` está em `colunas_invalidam`, então a invalidação (etapa 4) reescreve o status
+antes de a checagem de transição (etapa 5) poder recusar, e a regra fica inalcançável. Não é furo
+de segurança (o veredito não é trocado), mas a server action redirecionaria dizendo "reprovada"
+com o banco em `pendente` — **a interface mentiria**. Correção pendente.
+
+⚠ **Armadilha de teste:** `create temporary table` dentro da transação e depois `set local role
+authenticated` dá `42501 permission denied for table` — a temp table pertence ao papel anterior.
+Usar subquery em vez de tabela temporária.
+
+## PII lateral do catálogo (migration 30)
+
+`catalogo_responsavel` existe porque **não há RLS de coluna no Postgres** e grant de coluna é por
+papel — admin e avaliador são os dois `authenticated`. A única separação possível é por tabela.
+
+| | |
+|---|---|
+| Linhas migradas | **80** de 88 |
+| Com nome de pessoa | 42 |
+| Com cargo | 79 |
+| Com e-mail | 0 |
+| Grants `authenticated` | INSERT, SELECT, UPDATE (sem DELETE) |
+| Grants `anon` | **nenhum** |
+| Policies | 3, todas `private.is_admin()` |
+
+⚠ **A premissa de "0 linhas preenchidas", repetida em todo o planejamento, estava errada.** Ela
+veio de uma consulta com `where publicado` feita quando só havia 4 publicadas. Os 38 itens de
+`bloco='formulario'` têm **todos** nome de pessoa preenchido. A tabela lateral deixou de ser
+higiene preventiva e virou correção de exposição real: sem ela, o primeiro avaliador leria nome e
+cargo de 42 submissores.
+
+Consequência para a migration que dropa as colunas antigas: **deixou de ser trivial**. As 80 linhas
+dependem de o código novo (release A1) estar no ar — e está.
+
+## Descarte de submissão (migration 29)
+
+| # | Caso | Esperado | Resultado |
+|---|---|---|---|
+| j1 | descartar com motivo válido | passa | ✅ |
+| j2 | descartar com motivo só de espaços | 23514 | ✅ `submissoes_descarte_motivado` |
+| j3 | descartar sem motivo | 23514 | ✅ |
+| j4 | motivo enviado com status ≠ descartada | normalizado para NULL | ✅ |
+| j5 | trocar o motivo **sem** mudar o status | auditado | ✅ evento `motivo_atualizado` |
+| j6 | reabrir (sair de descartada) | motivo zerado na linha, **preservado na auditoria** | ✅ |
+
+O invariante vale nos dois sentidos: descartada ⇒ motivo não-vazio; qualquer outro estado ⇒ motivo
+nulo. O motivo é CHECK de tabela, não regra de action — `lib/actions.ts` já exigia `encaminhamento`
+só no código para `em_adequacao`, e um PATCH direto contorna.
+
+**Ator da auditoria:** com JWT grava o e-mail (`eunice.liu@enap.gov.br` no teste); sem JWT grava
+`sistema:<role|session_user>`. ⚠ `session_user`, nunca `current_user` — dentro de `security
+definer` este último é o **dono** da função, e uma carga por `service_role` seria auditada como
+`sistema:postgres`.
 
 ## Política de auditoria imutável
 

@@ -10,6 +10,21 @@ type Row = Record<string, any>;
 
 const FILTRO_BLOCO: Opcao[] = BLOCO_ORIGEM;
 
+const OKS: Record<string, string> = {
+  promovida: "Submissão promovida ao catálogo.",
+  // Efeito NOVO da migration 32: editar conteúdo de uma solução já avaliada revoga o veredito, e
+  // se ela estava no ar, sai. Silenciar isso deixaria a pessoa achar que só corrigiu um typo.
+  invalidada: "Alteração salva. A avaliação anterior foi revogada — a solução voltou para a fila.",
+  invalidada_despublicada:
+    "Alteração salva. A avaliação anterior foi revogada e a solução foi retirada do ar — reavalie e publique de novo.",
+};
+
+const ERROS: Record<string, string> = {
+  publicacao_bloqueada:
+    "Não é possível publicar: solução de formulário precisa estar aprovada, e nada reprovado fica no ar.",
+  salvar: "Não foi possível salvar.",
+};
+
 export default async function AdminCatalogoPage({
   searchParams,
 }: {
@@ -61,14 +76,8 @@ export default async function AdminCatalogoPage({
         </Link>
       </div>
 
-      {sp.ok && <Banner cor="ok">{sp.ok === "promovida" ? "Submissão promovida ao catálogo." : "Alteração salva."}</Banner>}
-      {sp.erro && (
-        <Banner cor="erro">
-          {sp.erro === "publicacao_bloqueada"
-            ? "Não é possível publicar: solução de formulário precisa estar aprovada, e nada reprovado fica no ar."
-            : "Não foi possível salvar."}
-        </Banner>
-      )}
+      {sp.ok && <Banner cor="ok">{OKS[sp.ok] ?? "Alteração salva."}</Banner>}
+      {sp.erro && <Banner cor="erro">{ERROS[sp.erro] ?? "Não foi possível salvar."}</Banner>}
 
       {/* Filtros */}
       <form method="get" style={{ display: "flex", gap: 12, alignItems: "flex-end", background: "#f5f7fb", border: "1px solid #dde3ee", borderRadius: 8, padding: 12, marginBottom: 16, flexWrap: "wrap" }}>
@@ -126,7 +135,17 @@ export default async function AdminCatalogoPage({
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <Link href={`/admin/catalogo/${r.id}/editar`} style={{ ...btnSm, background: "#fff", color: "#1351b4", border: "1px solid #1351b4", textDecoration: "none" }}>Editar</Link>
                     <Link href={`/admin/catalogo/${r.id}/avaliar`} style={{ ...btnSm, background: "#fff", color: "#1351b4", border: "1px solid #1351b4", textDecoration: "none" }}>Avaliar</Link>
-                    <Publicar id={r.id} valor={!r.publicado} rotulo={r.publicado ? "Despublicar" : "Publicar"} />
+                    {/* Reprovada não oferece "Publicar": o banco recusa com 42501 (migration 32) e
+                        antes disso a coerção silenciosa fazia o clique "dar certo" sem publicar
+                        nada — e a trilha registrava uma publicação que não aconteceu. */}
+                    {r.status_avaliacao === "reprovada" && !r.publicado ? (
+                      <span style={{ ...btnSm, background: "#f5f7fb", color: "#8a8a8a", border: "1px solid #dde3ee", cursor: "default" }}
+                            title="Reprovada não vai ao ar. Reabra a avaliação e conclua de novo.">
+                        Publicar
+                      </span>
+                    ) : (
+                      <Publicar id={r.id} valor={!r.publicado} rotulo={r.publicado ? "Despublicar" : "Publicar"} />
+                    )}
                   </div>
                 </td>
               </tr>

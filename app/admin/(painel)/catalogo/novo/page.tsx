@@ -6,6 +6,10 @@ export const dynamic = "force-dynamic";
 
 const ERROS: Record<string, string> = {
   obrig: "Título e órgão são obrigatórios.",
+  publicacao_bloqueada:
+    "Solução de origem “Auto-declarada” não pode nascer publicada: ela precisa ser avaliada e aprovada antes. Cadastre sem marcar “Publicar imediatamente”.",
+  transicao: "O estado da avaliação não permite esta operação.",
+  avaliador: "Esta operação é do perfil administrador.",
   salvar: "Não foi possível salvar.",
 };
 
@@ -20,8 +24,9 @@ export default async function NovaCatalogoPage({
       <Link href="/admin/catalogo" style={{ color: "#1351b4" }}>← Voltar ao Catálogo</Link>
       <h1 style={{ fontSize: "1.5rem", margin: "8px 0 4px" }}>Nova solução no catálogo</h1>
       <p style={{ color: "#666", marginTop: 0 }}>
-        Cadastre uma solução ou software de IA. Entra como <strong>revisado</strong> (cadastro manual);
-        escolha se publica já ou mantém privado.
+        Cadastre uma solução ou software de IA. Toda linha nasce <strong>pendente de avaliação</strong> —
+        cadastrar não é avaliar. Escolha se publica já ou mantém privado; soluções de origem
+        “Auto-declarada” só vão ao ar depois de aprovadas.
       </p>
       {sp.erro && <Banner>{ERROS[sp.erro] ?? "Erro."}</Banner>}
       <CatalogoForm action={criarCatalogo} modo="novo" />

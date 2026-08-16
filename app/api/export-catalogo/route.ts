@@ -2,7 +2,7 @@ import { getAdmin, registrarAuditoria } from "@/lib/auth-guard";
 import { toCSV } from "@/lib/csv";
 import {
   labelOf, NIVEL_GOVERNO, AREA, STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
-  SOBERANIA_CATALOGO, BLOCO_ORIGEM, codes,
+  SOBERANIA_CATALOGO, BLOCO_ORIGEM, STATUS_AVALIACAO, codes,
 } from "@/lib/enums";
 
 // Export do Catálogo de soluções (vitrine, itens 5/7). Admin-only e auditado.
@@ -30,7 +30,13 @@ const COLUNAS = [
   { key: "responsavel_nome", header: "Responsável" },
   { key: "responsavel_email", header: "E-mail responsável" },
   { key: "responsavel_cargo", header: "Cargo responsável" },
-  { key: "revisado", header: "Revisado" },
+  // ⚠ O veredito é `status_avaliacao`, não o booleano. `revisado` significa apenas "avaliação
+  //   concluída" — e REPROVADA também é concluída, então "Revisado: Sim" sozinho fazia a planilha
+  //   que circula na coordenação e na ENAP não distinguir aprovada de reprovada, e colapsar
+  //   "pendente" com "aguardando informações" num mesmo "Não". O booleano sai do CSV.
+  { key: "status_avaliacao", header: "Avaliação" },
+  { key: "revisado_por", header: "Avaliado por" },
+  { key: "revisado_em", header: "Avaliado em" },
   { key: "publicado", header: "Publicado" },
   { key: "fonte", header: "Fonte" },
 ];
@@ -51,7 +57,8 @@ function paraExibicao(r: Record<string, any>) {
     frameworks: arr(r.frameworks),
     modalidades: arr(r.modalidades),
     tags: arr(r.tags),
-    revisado: r.revisado ? "Sim" : "Não",
+    status_avaliacao: labelOf(STATUS_AVALIACAO, r.status_avaliacao),
+    revisado_em: r.revisado_em ? new Date(r.revisado_em).toISOString().slice(0, 10) : "",
     publicado: r.publicado ? "Sim" : "Não",
     criado_em: r.criado_em ? new Date(r.criado_em).toISOString().slice(0, 10) : "",
   };

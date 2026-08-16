@@ -116,6 +116,41 @@ autorrevogação de admin por PostgREST, e default privileges do Supabase que da
 de autorização, API administrativa genérica, `service_role` para operações de browser. O Supabase
 já entrega as primitivas; deslocar a segurança da RLS para código de aplicação seria regressão.
 
+### Desvio autorizado do "não fazer" — perfil `avaliador` (agosto/2026)
+
+O "não criar RBAC próprio" acima foi **deliberadamente desviado**, com autorização da coordenação,
+e o desvio precisa estar escrito para não ser lido depois como descuido.
+
+**Por quê:** `public.admins` era tudo-ou-nada. Para alguém avaliar uma solução era preciso entregar
+junto nome, e-mail e telefone dos 76 submissores, o export CSV completo e a gestão de contas. Numa
+reunião de coordenação cinco acessos foram concedidos e revogados em minutos, porque não existe
+meio-termo. E `/revisores` promete "revisão por pares" publicamente desde junho, com 27 inscritos e
+nenhum pipeline construído.
+
+**O tamanho do desvio:** uma coluna `papel` com CHECK de dois valores, dois predicados em `private`
+e dois triggers. **Não** é tabela de papéis, **não** é matriz de permissões, **não** é middleware.
+Migrations 28–31.
+
+**Decisões da coordenação, registradas:**
+- **Admin também avalia.** Com 2 admins e nenhum avaliador, exclusividade travaria a fila. A
+  separação passa a ser sobre *limitar o avaliador*, não sobre segregar funções.
+- **Avaliação tem resultado, não marca.** `status_avaliacao` com quatro estados; `revisado` vira
+  derivado. Sem isso o banco aceitaria publicar algo formalmente **reprovado**.
+- **Reprovação formal despublica.** É consequência declarada de um veredito auditado, não efeito
+  colateral de edição — o avaliador segue sem poder tocar em `publicado`.
+- **Notificação sem infraestrutura:** as filas do admin são derivadas do estado. Zero tabela de
+  notificações, zero cron, zero SMTP — e o SMTP embutido do Supabase já é gargalo conhecido aqui.
+
+**Correção de premissa:** o planejamento inteiro assumiu "0 linhas com PII no catálogo". Estava
+errado — são **80 linhas, com 42 nomes de pessoa**. O número veio de uma consulta com
+`where publicado` feita quando só havia 4 publicadas. A tabela lateral `catalogo_responsavel`, que
+foi tratada como precaução durante o desenho, era correção de exposição real.
+
+**Backlog acrescentado:** renomear `revisado_por`/`revisado_em` para `avaliado_*` (os nomes ficaram
+desalinhados com o conceito), atribuição de item a avaliador (só se colisão virar problema real), e
+uma segunda avaliação independente por solução (exigiria `catalogo_avaliacoes` — não construir sem
+necessidade concreta).
+
 ## Transparência
 
 Esta decisão é pública. A página `/privacidade` deve declarar onde o dado está hospedado, qual a

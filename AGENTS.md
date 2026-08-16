@@ -49,6 +49,48 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
 - **Revogação de privilégio é sempre dirigida** (`revoke delete, truncate … `), nunca `revoke all` —
   ver migration 26. Default privileges do Supabase concedem `ALL`: toda tabela nova precisa revogar
   o que não usa, e entrar na matriz de `docs/RLS_TESTES.md`.
+- **Dois perfis, um papel Postgres.** `admins.papel` é `admin` ou `avaliador` (migration 28), e os
+  dois rodam como `authenticated`. Por isso **grant de coluna não separa perfil** e **RLS não
+  restringe coluna**: a fronteira é `RLS decide LINHAS, trigger decide ALTERAÇÕES`
+  (`trg_catalogo_governanca`, migration 31). Regra que ficar só na server action é contornável por
+  PATCH direto no PostgREST — foi o vício de A-3, da 24→25 e da auditoria.
+- **A allowlist do avaliador é fechada e testada por IGUALDADE.** Coluna nova em
+  `catalogo_solucoes` nasce **proibida** ao avaliador. `tests/drift.test.ts` compara nos dois
+  sentidos com `camposModelCard()` (`lib/model-card.ts`): campo faltando vira 403 numa tela que
+  parece funcionar; campo a mais é privilégio silencioso.
+  ⚠ Esse teste **não existia** até a migration 32, embora este arquivo e o comentário da 31
+  afirmassem por escrito que sim. Garantia que só está na documentação não é garantia — é a mesma
+  lacuna que gerou A-1 e A-5. Antes de citar um teste como prova, `grep` nele.
+- **Dentro de um trigger, ORDEM DE ETAPA é regra de negócio.** Uma etapa que reescreve a linha
+  torna inalcançável o julgamento da etapa seguinte, e a regra desaparece **sem erro nenhum**. Foi
+  a assinatura dos quatro defeitos corrigidos pela migration 32: `aprovada → reprovada` virava
+  `pendente` calado; publicar item reprovado virava no-op "bem-sucedido" com a trilha registrando
+  uma publicação que não aconteceu. Antídoto aplicado: guardar a **intenção do cliente**
+  (`v_status_pedido`) antes de qualquer reescrita, e julgar por ela.
+- **Lista de invalidação é EXCLUSÃO, nunca inclusão** (migration 32, `colunas_nao_invalidam`).
+  Como allowlist ela falhava em **aberto**: 11 colunas públicas (`soberania`, `impacto`, `area`,
+  `licenca`, `tags`…) ficaram de fora e trocar qualquer uma preservava a aprovação. Coluna nova
+  nasce **invalidando**, e nome digitado errado passa a invalidar de mais (ruído visível) em vez
+  de menos (silêncio).
+- **Perder o veredito TIRA DO AR** (migration 32). Sair de `aprovada`/`reprovada` para `pendente`
+  despublica, em qualquer bloco — o banco reconcilia, não o chamador. O `publicado + pendente` do
+  legado nunca avaliado (`software_publico`) continua permitido, porque a regra exige *sair* de um
+  estado terminal. Consequência que a UI **precisa** avisar antes: editar conteúdo de solução
+  avaliada revoga a avaliação e tira a solução da vitrine.
+  ⚠ Por isso **invalidar virou ato de admin**: com a despublicação automática, deixar isso ao
+  avaliador lhe daria o poder de tirar do ar por edição de campo — o efeito colateral opaco que o
+  desenho recusou. Ele recebe 42501 pedindo reabertura.
+- **Ordem de array não é conteúdo.** `modalidades`/`tags`/`frameworks` são conjuntos; o formulário
+  os reemite na ordem do DOM. Sem normalizar, um "salvar sem mudar nada" conta como mudança de
+  conteúdo e derruba a aprovação (medido: 2 das 88 linhas).
+- **`revisado` é DERIVADO** de `status_avaliacao` e significa "avaliação concluída" — o que inclui
+  **reprovada**. Nenhuma lógica nova usa o booleano; filtros, exports e indicadores usam
+  `status_avaliacao`. Na vitrine pública o rótulo é "Avaliação concluída", nunca "Aprovado".
+- **Autoria da avaliação vem sempre do banco**, nem admin forja: o trigger deriva `revisado`,
+  `revisado_por` e `revisado_em` a partir do estado, e descarta o que o cliente enviar.
+- **Avaliação e descarte são auditados por TRIGGER**, na mesma transação — não por
+  `registrarAuditoria`. Uma policy de INSERT em `auditoria` garantiria só *quem* inseriu, não que o
+  evento aconteceu. O resto da trilha continua aplicacional (backlog P2 do ADR).
 - **Toda escrita pública passa por `/api/submissao`** — em Zod `.strict()`, honeypot e rate limit.
   ⚠ Isto é verdade **na aplicação**, não no banco: com a chave publishable dá para chamar o
   PostgREST direto. O grant por coluna e o `with check` limitam *o que* se grava; o volume ainda
@@ -72,7 +114,7 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   visitante. `tests/sinapses.test.ts` guarda isso; a rota aparecer como `ƒ` no build é esperado.
 
 ## Migrations
-`supabase/migrations/` (01→26), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
+`supabase/migrations/` (01→32), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
 RLS (`docs/RLS_TESTES.md`) antes de deploy.
 
 ⚠ **Migration aplicada é histórico — não se edita o arquivo depois.** Corrigir o texto de uma
