@@ -10,6 +10,8 @@ import {
   codes,
   HOSPEDAGEM_INFERENCIA,
   TRANSFERENCIA_INTERNACIONAL,
+  NIVEL_RISCO,
+  SUPERVISAO,
 } from "./enums";
 
 // Texto opcional: trim; vazio → null; corta no limite (o CHECK do banco é a fronteira final).
@@ -79,5 +81,21 @@ export function camposModelCard(formData: FormData) {
     auditoria_certificacoes: txt(formData, "auditoria_certificacoes", 1000),
     canal_reclamacao: txt(formData, "canal_reclamacao", 500),
     data_revisao_proxima: txt(formData, "data_revisao_proxima"),
+  };
+}
+
+// Classificação de risco e regime de supervisão. Separado de `camposModelCard` porque o
+// CatalogoForm (admin) já os oferece por conta própria — só a tela de AVALIAR precisava deles.
+//
+// ⚠ Existia uma assimetria silenciosa: `nivel_risco` e `supervisao` estavam na allowlist do
+//   avaliador no trigger (a migration chama isso de "o núcleo da avaliação"), mas NENHUMA tela do
+//   avaliador enviava os dois — nem `camposModelCard` os continha. O privilégio existia no banco
+//   e era inalcançável, e o teste anti-drift não pegava porque a lista de "técnicos" era escrita
+//   à mão e embutia a lacuna em vez de expô-la. Com esta função, o teste compara
+//   allowlist == camposModelCard() + camposRisco() + os TRÊS de sistema.
+export function camposRisco(formData: FormData) {
+  return {
+    nivel_risco: opcional(formData, "nivel_risco", codes(NIVEL_RISCO)),
+    supervisao: opcional(formData, "supervisao", codes(SUPERVISAO)),
   };
 }

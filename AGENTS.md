@@ -80,9 +80,30 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   ⚠ Por isso **invalidar virou ato de admin**: com a despublicação automática, deixar isso ao
   avaliador lhe daria o poder de tirar do ar por edição de campo — o efeito colateral opaco que o
   desenho recusou. Ele recebe 42501 pedindo reabertura.
-- **Ordem de array não é conteúdo.** `modalidades`/`tags`/`frameworks` são conjuntos; o formulário
-  os reemite na ordem do DOM. Sem normalizar, um "salvar sem mudar nada" conta como mudança de
-  conteúdo e derruba a aprovação (medido: 2 das 88 linhas).
+- **Ordem de array não é conteúdo — mas só em `modalidades`** (migration 33). O formulário reemite
+  os checkboxes na ordem do DOM, então um "salvar sem mudar nada" derrubava a aprovação e tirava da
+  vitrine (medido: 2 das 88 linhas). `private.conteudo_avaliado()` normaliza **só** essa coluna.
+  ⚠ Não estender para `tags`, `frameworks`, `grupos_afetados` ou `mitigacoes`: são texto livre cuja
+  **ordem é semântica** (repriorizar mitigação de risco é mudança real) e cujo round-trip já a
+  preserva — normalizá-las seria voltar a falhar em aberto. `tests/drift.test.ts` guarda isso.
+- **Veredito revogado ≠ nunca avaliado** (migration 33, `veredito_revogado_em`). `pendente` sozinho
+  conflacionava os dois, e por isso reabrir + publicar devolvia ao ar uma solução **formalmente
+  reprovada**, em dois cliques legítimos e auditados. A coluna é escrita e limpa só pelo trigger; um
+  item que perdeu o veredito não publica até ser avaliado de novo. O legado `publicado + pendente`
+  que nunca teve veredito segue permitido — nele a coluna é nula.
+- **`status` e `tags` NÃO invalidam avaliação**, de propósito. `status` é ciclo de vida e alimenta o
+  selo vermelho da vitrine: marcar um card como `descontinuado` e tirá-lo do ar no mesmo ato é
+  contraditório. `tags` é metadado de busca.
+- **Link mostrado a um papel tem de ser alcançável por ele.** A nav oferecia "Catálogo" ao
+  avaliador e a página é `requireAdmin()`; a tela de acesso negado linkava de volta para o catálogo
+  — laço fechado, com o perfil inteiro inalcançável a não ser colando UUID na barra. `requireAdmin()`
+  agora desvia o avaliador para `/admin/fila`, e `tests/nav.test.ts` compara a nav com o guard de
+  cada página. Esconder link continua não sendo autorização; o teste cobre o **inverso**.
+- **Privilégio inalcançável é tão ruim quanto 403 em tela que funciona.** `nivel_risco` e
+  `supervisao` estavam na allowlist do avaliador e **nenhuma tela** dele os enviava — e o
+  anti-drift ficava verde porque a lista de "técnicos" era escrita à mão e embutia a lacuna. Regra:
+  o que entra na allowlist entra por uma **função** (`camposModelCard()`, `camposRisco()`), nunca
+  como nome literal no teste.
 - **`revisado` é DERIVADO** de `status_avaliacao` e significa "avaliação concluída" — o que inclui
   **reprovada**. Nenhuma lógica nova usa o booleano; filtros, exports e indicadores usam
   `status_avaliacao`. Na vitrine pública o rótulo é "Avaliação concluída", nunca "Aprovado".
@@ -114,8 +135,14 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   visitante. `tests/sinapses.test.ts` guarda isso; a rota aparecer como `ƒ` no build é esperado.
 
 ## Migrations
-`supabase/migrations/` (01→32), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
+`supabase/migrations/` (01→33), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
 RLS (`docs/RLS_TESTES.md`) antes de deploy.
+
+⚠ **Função em `private` chamada pelo trigger exige `usage` no schema para TODO papel que escreve.**
+O `DECLARE` de `governanca_catalogo()` chama `private.is_admin()` em toda invocação, inclusive
+INSERT — e `service_role` não tinha `usage`, então `npm run import:solucoes` ficou quebrado da 31
+até a 33 sem ninguém notar (a carga não rodou nesse intervalo). Papel novo que escreve em tabela
+com trigger precisa entrar no grant, e na matriz de RLS.
 
 ⚠ **Migration aplicada é histórico — não se edita o arquivo depois.** Corrigir o texto de uma
 migration já executada cria duas verdades (produção rodou A, o repo afirma B) e faz um `db reset`

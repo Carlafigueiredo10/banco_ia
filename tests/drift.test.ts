@@ -10,7 +10,7 @@ import {
   STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, TRANSFERENCIA_INTERNACIONAL,
 } from "../lib/enums";
-import { camposModelCard } from "../lib/model-card";
+import { camposModelCard, camposRisco } from "../lib/model-card";
 import { EVENTOS } from "../lib/metrica";
 import { calcEstagio, type PontoAtual, type JaUsado } from "../lib/estagio";
 
@@ -172,32 +172,35 @@ describe("Anti-drift: perfil avaliador e avaliação (migrations 28/29)", () => 
 //
 // A migration 32 é a versão VIGENTE da função (a 31 virou histórico).
 // =====================================================================================
-const schema32 = readFileSync(
-  resolve(__dirname, "../supabase/migrations/32_corrige_governanca_avaliacao.sql"),
+const schema33 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/33_veredito_revogado_e_conjuntos.sql"),
   "utf8"
 );
-function arraySql32(nome: string): string[] {
+function arraySql33(nome: string): string[] {
   const re = new RegExp(`${nome}\\s+constant text\\[\\]\\s*:=\\s*array\\[([^\\]]*)\\]`);
-  const m = schema32.match(re);
-  if (!m) throw new Error(`array \`${nome}\` não encontrado em 32_*`);
+  const m = schema33.match(re);
+  if (!m) throw new Error(`array \`${nome}\` não encontrado em 33_*`);
   // Tira os comentários antes de garimpar os literais: um `--` com apóstrofo viraria coluna.
   return [...m[1].replace(/--[^\n]*/g, "").matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
 
-describe("Anti-drift: trigger de governança da avaliação (migration 32)", () => {
-  // Os cinco que NÃO vêm do formulário do Model Card, mas o avaliador precisa poder gravar.
-  // `atualizado_em` está aí porque `trg_catalogo_atualizado_em` é BEFORE e dispara antes desta
-  // função — sem ele, TODO update do avaliador falharia com 42501.
-  const TECNICOS = ["nivel_risco", "supervisao", "parecer", "status_avaliacao", "atualizado_em"];
+describe("Anti-drift: trigger de governança da avaliação (migration 33)", () => {
+  // Os TRÊS de sistema. `nivel_risco` e `supervisao` saíram desta lista e viraram `camposRisco()`:
+  // enquanto eram nomes escritos à mão aqui, o teste ficava verde escondendo que eles estavam na
+  // allowlist do banco e NENHUMA tela do avaliador os enviava — privilégio inalcançável, que é o
+  // espelho do 403 numa tela que parece funcionar. Lista literal aqui embute a lacuna; função a expõe.
+  // `atualizado_em` fica porque `trg_catalogo_atualizado_em` é BEFORE e dispara antes desta função.
+  const TECNICOS = ["parecer", "status_avaliacao", "atualizado_em"];
 
   const modelCard = Object.keys(camposModelCard(new FormData()));
-  const allowlist = arraySql32("colunas_avaliador");
-  const naoInvalidam = arraySql32("colunas_nao_invalidam");
+  const risco = Object.keys(camposRisco(new FormData()));
+  const allowlist = arraySql33("colunas_avaliador");
+  const naoInvalidam = arraySql33("colunas_nao_invalidam");
 
   // IGUALDADE, não subconjunto, e nos dois sentidos: campo que falta no SQL vira 403 numa tela
   // que parece funcionar; campo a mais é privilégio silencioso.
-  it("allowlist do avaliador = camposModelCard() + os cinco técnicos", () => {
-    expect(new Set(allowlist)).toEqual(new Set([...modelCard, ...TECNICOS]));
+  it("allowlist do avaliador = camposModelCard() + camposRisco() + os três de sistema", () => {
+    expect(new Set(allowlist)).toEqual(new Set([...modelCard, ...risco, ...TECNICOS]));
   });
 
   it("allowlist não tem duplicata (duplicata esconde erro de edição)", () => {
@@ -207,7 +210,9 @@ describe("Anti-drift: trigger de governança da avaliação (migration 32)", () 
   // `publicado` é a fronteira entre avaliar e publicar. Se algum dia entrar na allowlist, o
   // avaliador passa a tirar e pôr solução no ar por conta própria.
   it("allowlist não concede publicação nem autoria", () => {
-    for (const proibida of ["publicado", "revisado", "revisado_por", "revisado_em", "bloco", "titulo"]) {
+    const proibidas = ["publicado", "revisado", "revisado_por", "revisado_em",
+                       "veredito_revogado_em", "bloco", "titulo"];
+    for (const proibida of proibidas) {
       expect(allowlist, `${proibida} não pode estar na allowlist do avaliador`).not.toContain(proibida);
     }
   });
@@ -217,16 +222,43 @@ describe("Anti-drift: trigger de governança da avaliação (migration 32)", () 
   // invalidação de conteúdo, `v_invalidada` fica true e a exigência de `v_admin` é dispensada:
   // o avaliador reabriria avaliação concluída mandando só o status.
   it("colunas_nao_invalidam exclui tudo que o próprio trigger reescreve", () => {
-    for (const tecnica of ["status_avaliacao", "revisado", "revisado_por", "revisado_em", "atualizado_em"]) {
+    const tecnicas = ["status_avaliacao", "revisado", "revisado_por", "revisado_em",
+                      "veredito_revogado_em", "atualizado_em"];
+    for (const tecnica of tecnicas) {
       expect(naoInvalidam, `${tecnica} precisa estar excluído da invalidação`).toContain(tecnica);
     }
   });
 
   // O espelho: nenhum campo de CONTEÚDO pode estar excluído, ou o avaliador altera o objeto
   // avaliado sem derrubar a própria avaliação que deu.
-  it("nenhum campo do Model Card escapa da invalidação", () => {
-    for (const campo of [...modelCard, "parecer", "titulo", "descricao", "orgao", "link", "soberania"]) {
+  it("nenhum campo do Model Card ou de risco escapa da invalidação", () => {
+    const conteudo = [...modelCard, ...risco, "parecer", "titulo", "descricao", "orgao",
+                      "link", "soberania", "impacto", "licenca", "area"];
+    for (const campo of conteudo) {
       expect(naoInvalidam, `${campo} não pode estar fora da invalidação`).not.toContain(campo);
+    }
+  });
+
+  // `status` e `tags` foram tirados da invalidação DE PROPÓSITO (migration 33), não por
+  // esquecimento: `status` é ciclo de vida e alimenta o selo vermelho da vitrine — marcar um card
+  // como descontinuado e tirá-lo do ar no mesmo ato é contraditório; `tags` é metadado de busca.
+  // O teste registra a decisão, para que reverter seja deliberado.
+  it("status e tags estão deliberadamente fora da invalidação", () => {
+    expect(naoInvalidam).toContain("status");
+    expect(naoInvalidam).toContain("tags");
+  });
+
+  // A normalização de conjunto vale SÓ para `modalidades`. Estender para tags/frameworks/
+  // grupos_afetados/mitigacoes seria regressão de polaridade: são listas de texto livre cuja
+  // ordem é semântica (repriorizar mitigação de risco é mudança real).
+  it("a normalização de ordem cobre modalidades e nada mais", () => {
+    const fn = schema33.match(/create or replace function private\.conteudo_avaliado[\s\S]*?\$\$;/);
+    expect(fn, "função conteudo_avaliado não encontrada na 33").toBeTruthy();
+    const chaves = [...fn![0].matchAll(/jsonb_build_object\(\s*'([^']+)'/g)].map((x) => x[1]);
+    expect(chaves).toEqual(["modalidades"]);
+    for (const livre of ["tags", "frameworks", "grupos_afetados", "mitigacoes"]) {
+      expect(fn![0], `${livre} não pode ser normalizada: a ordem dela é semântica`)
+        .not.toContain(`'${livre}'`);
     }
   });
 });

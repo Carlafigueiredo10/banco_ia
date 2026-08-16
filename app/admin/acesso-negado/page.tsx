@@ -13,12 +13,15 @@ export default function AcessoNegadoPage() {
         Esta área é exclusiva da coordenação.
       </p>
       <p style={{ color: "#555", marginBottom: 24, fontSize: ".92rem" }}>
-        Se você avalia soluções, seu acesso é o <strong>catálogo</strong>. Se deveria estar aqui e
-        não está, peça a um administrador para verificar seu perfil.
+        Se você avalia soluções, seu acesso é a <strong>fila de avaliação</strong>. Se deveria
+        estar aqui e não está, peça a um administrador para verificar seu perfil.
       </p>
+      {/* ⚠ Este link ia para /admin/catalogo, que é admin-only e devolvia a pessoa para cá — laço
+          fechado. E `requireAdmin()` agora manda o avaliador direto para a fila, então esta tela
+          só aparece para quem não tem papel nenhum. */}
       <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-        <Link href="/admin/catalogo" style={{ color: "var(--bbsia-azul)" }}>
-          Ir para o catálogo
+        <Link href="/admin/fila" style={{ color: "var(--bbsia-azul)" }}>
+          Ir para a fila de avaliação
         </Link>
         <Link href="/admin/login" style={{ color: "var(--bbsia-azul)" }}>
           Voltar ao login

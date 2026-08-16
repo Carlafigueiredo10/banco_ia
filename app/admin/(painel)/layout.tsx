@@ -12,9 +12,15 @@ import LogoutButton from "@/components/admin/LogoutButton";
 //   por conta própria. Sem isso, /admin/indicadores abriria para o avaliador e mostraria um painel
 //   zerado em silêncio (a RLS devolveria 0 linhas de submissoes) — o pior tipo de falha, porque
 //   parece dado e é ausência de permissão.
+//
+// ⚠ Todo destino visível a `avaliador` PRECISA responder sem redirect. "Catálogo" apontava para
+//   /admin/catalogo, que é `requireAdmin()`: o único link da nav dele levava a acesso negado, e a
+//   tela de acesso negado linkava de volta para o catálogo — laço fechado. `tests/nav.test.ts`
+//   guarda isso agora.
 const LINKS: { href: string; rotulo: string; papeis: Papel[] }[] = [
   { href: "/admin", rotulo: "Submissões", papeis: ["admin"] },
-  { href: "/admin/catalogo", rotulo: "Catálogo", papeis: ["admin", "avaliador"] },
+  { href: "/admin/fila", rotulo: "Fila de avaliação", papeis: ["admin", "avaliador"] },
+  { href: "/admin/catalogo", rotulo: "Catálogo", papeis: ["admin"] },
   { href: "/admin/fundacao", rotulo: "Bases", papeis: ["admin"] },
   { href: "/admin/revisores", rotulo: "Revisores", papeis: ["admin"] },
   { href: "/admin/indicadores", rotulo: "Indicadores", papeis: ["admin"] },

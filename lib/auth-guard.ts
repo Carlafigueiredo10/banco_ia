@@ -57,10 +57,15 @@ export async function getAdmin(): Promise<AdminContext | null> {
 // Guards que redirecionam. Existem para que uma página nova não dependa de alguém lembrar de
 // repetir o par `getX()` + `redirect()` — esquecer isso numa página admin-only é o tipo de lacuna
 // que a RLS cobre no banco mas que faz a tela mentir (indicadores zerados, por exemplo).
+// ⚠ O avaliador vai para a FILA, não para "acesso negado". Antes ele caía sempre em
+//   /admin/acesso-negado, cuja única saída oferecida é /admin/catalogo — que é admin-only e o
+//   devolve para lá: laço fechado, e o perfil inteiro inalcançável pela interface. "Acesso
+//   negado" fica para quem não tem papel nenhum, que é o que a tela realmente quer dizer.
 export async function requireAdmin(): Promise<AdminContext> {
-  const admin = await getAdmin();
-  if (!admin) redirect("/admin/acesso-negado");
-  return admin;
+  const ator = await getAtor();
+  if (ator?.papel === "avaliador") redirect("/admin/fila");
+  if (!ator) redirect("/admin/acesso-negado");
+  return { email: ator.email, supabase: ator.supabase };
 }
 
 export async function requireAtor(): Promise<AtorContext> {

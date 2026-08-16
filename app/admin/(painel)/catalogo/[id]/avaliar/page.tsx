@@ -7,7 +7,9 @@ import {
   enviarParaReavaliacao,
 } from "@/lib/actions-catalogo";
 import ModelCardCampos from "@/components/admin/ModelCardCampos";
-import { STATUS_AVALIACAO, ROTULO_PARECER, NIVEL_RISCO, BLOCO_ORIGEM, labelOf } from "@/lib/enums";
+import {
+  STATUS_AVALIACAO, ROTULO_PARECER, NIVEL_RISCO, SUPERVISAO, BLOCO_ORIGEM, labelOf, type Opcao,
+} from "@/lib/enums";
 
 export const dynamic = "force-dynamic";
 
@@ -91,8 +93,13 @@ export default async function AvaliarPage({
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
         <h1 style={{ fontSize: "1.4rem", margin: 0 }}>Avaliar solução</h1>
         <Selo status={status} />
-        <Link href="/admin/catalogo" style={{ marginLeft: "auto", color: "#1351b4" }}>
-          ← Voltar ao catálogo
+        {/* Destino por PAPEL: /admin/catalogo é admin-only, então para o avaliador este "voltar"
+            era um convite para a tela de acesso negado. */}
+        <Link
+          href={ehAdmin ? "/admin/catalogo" : "/admin/fila"}
+          style={{ marginLeft: "auto", color: "#1351b4" }}
+        >
+          ← Voltar {ehAdmin ? "ao catálogo" : "à fila"}
         </Link>
       </div>
 
@@ -181,6 +188,22 @@ export default async function AvaliarPage({
             </section>
           )}
 
+          {/* Classificação de risco e regime de supervisão. Estavam na allowlist do avaliador no
+              trigger desde a 31 — "o núcleo da avaliação, não adorno" — mas nenhuma tela do
+              avaliador os enviava: o privilégio existia no banco e era inalcançável, e a vitrine
+              seguia exibindo a autodeclaração do órgão carimbada como avaliação concluída. */}
+          <section style={caixa}>
+            <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Classificação</h2>
+            <p style={{ color: "#666", fontSize: ".85rem", marginTop: 0 }}>
+              O valor exibido é o declarado pelo órgão. Confirme ou corrija — é esta classificação
+              que a vitrine pública mostra, e é ela que alguém pode vir a questionar.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <Selecao nome="nivel_risco" rotulo="Nível de risco" opcoes={NIVEL_RISCO} def={item.nivel_risco} />
+              <Selecao nome="supervisao" rotulo="Supervisão humana" opcoes={SUPERVISAO} def={item.supervisao} />
+            </div>
+          </section>
+
           <ModelCardCampos defaults={item} />
 
           <section style={caixa}>
@@ -239,6 +262,22 @@ function Selo({ status }: { status: string }) {
     <span style={{ background: c.bg, color: c.f, borderRadius: 12, padding: "3px 10px", fontSize: ".8rem", fontWeight: 600 }}>
       {labelOf(STATUS_AVALIACAO, status)}
     </span>
+  );
+}
+
+function Selecao({ nome, rotulo, opcoes, def }: { nome: string; rotulo: string; opcoes: Opcao[]; def?: string | null }) {
+  return (
+    <label style={{ display: "block", fontSize: ".85rem", fontWeight: 600 }}>
+      {rotulo}
+      <select
+        name={nome}
+        defaultValue={def ?? ""}
+        style={{ width: "100%", padding: "8px 10px", border: "1px solid #999", borderRadius: 4, fontFamily: "inherit", fontSize: ".9rem", marginTop: 4, fontWeight: 400 }}
+      >
+        <option value="">—</option>
+        {opcoes.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
   );
 }
 

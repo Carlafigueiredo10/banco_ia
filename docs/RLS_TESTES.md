@@ -274,3 +274,82 @@ definer` este último é o **dono** da função, e uma carga por `service_role` 
 - ⚠ **A trilha é aplicacional, não transacional.** A mutação e o `INSERT` em `auditoria` são duas
   operações; se a segunda falhar, a primeira permanece. E escrita direta via PostgREST não gera
   registro. Cobre o uso normal do painel — não é garantia de que toda mudança está registrada.
+
+## Governança da avaliação — correções das migrations 32 e 33
+
+Origem: duas revisões adversariais (25 agentes sobre a 31, 19 sobre a 32; 21 achados confirmados
+no total, todos reproduzidos no banco em blocos `DO` revertidos por `raise`). As quatro falhas da
+31 tinham a **mesma assinatura**: uma etapa do trigger reescreve a linha antes de a etapa seguinte
+poder julgá-la, e o julgamento vira inalcançável, sem erro nenhum.
+
+**Ordem de etapa dentro de um trigger é regra de negócio.** Antídoto aplicado: guardar a *intenção
+do cliente* (`v_status_pedido`) antes de qualquer reescrita, e julgar por ela.
+
+### Bateria contra a função ao vivo (16/16)
+
+| # | Caso | Esperado | Resultado |
+|---|---|---|---|
+| R2 | avaliador altera `publicado` | 42501 | ✅ |
+| R4 | avaliador conclui com `nivel_risco` | aprovada, autoria carimbada | ✅ |
+| A1 | troca de veredito direto (`aprovada → reprovada`) | 42501 | ✅ |
+| B3 | avaliador edita avaliação concluída | 42501 | ✅ |
+| E1 | **reordenar** `modalidades` | segue aprovada e no ar | ✅ |
+| E2 | **acrescentar** modalidade | invalida e despublica | ✅ |
+| F1 | `status = descontinuado` | segue aprovada e no ar | ✅ |
+| F2 | nova `tag` | segue aprovada e no ar | ✅ |
+| G0 | legado `publicado + pendente` edita descrição | continua no ar, sem marca de revogação | ✅ |
+| G1 | reprovar item publicado | despublica | ✅ |
+| C1 | publicar item já reprovado | 42501 | ✅ |
+| G2 | admin reabre avaliação | `veredito_revogado_em` preenchido | ✅ |
+| G3 | republicar com veredito revogado | **42501** | ✅ |
+| G4 | reaprovar | memória de revogação limpa | ✅ |
+| G5 | publicar após reaprovar | passa | ✅ |
+| R13 | publicar `formulario` pendente | 23514 | ✅ |
+
+Antes da 32/33: A1 virava `pendente` em silêncio (a tela dizia "reprovada"); C1 era no-op
+"bem-sucedido" com a trilha imutável registrando publicação que não aconteceu; E1/F1/F2 derrubavam
+a aprovação e tiravam da vitrine; G3 devolvia ao ar uma solução **formalmente reprovada** em dois
+cliques legítimos.
+
+### Trilha de avaliação para o perfil avaliador (migration 33)
+
+`auditoria_select_avaliador` → `using (private.is_avaliador() and acao = 'avaliacao')`.
+
+Testado com o **papel Postgres** correto (`set local role authenticated`) — trocar só
+`request.jwt.claims` rodando como `postgres` **não exercita a RLS** e produz falso verde:
+
+| Ator | `acao = 'avaliacao'` | demais ações |
+|---|---|---|
+| avaliador | vê (2 de 2 do item) | **0** |
+| admin | vê | 49 |
+| autenticado sem linha em `admins` | **0** | **0** |
+| `anon` | permission denied | permission denied |
+
+Provado também que o avaliador **recupera o próprio parecer** pela trilha depois de o banco zerar
+a coluna na reabertura. Sem a policy ele reavaliava às cegas. Escopo: `acao='avaliacao'` é gravada
+exclusivamente pelo AFTER trigger e o `detalhe` não tem PII — `export_csv`, `convite_admin` e
+`anonimizacao` seguem admin-only.
+
+### `service_role` — regressão da 31, fechada na 33
+
+⚠ O trigger passou a chamar `private.is_admin()`/`is_avaliador()` no bloco `DECLARE`, avaliado em
+**toda** invocação, inclusive INSERT. E `service_role` nunca teve `USAGE` no schema `private`.
+Medido: **qualquer escrita do script de carga falhava** com `42501 permission denied for schema
+private`, antes de qualquer regra de negócio — `npm run import:solucoes` estava morto desde a 31, e
+ninguém tinha percebido porque a carga não roda desde então.
+
+Depois do grant: INSERT e UPDATE passam, e a regra continua valendo — carga automatizada **não
+avalia** (`Avaliação exige um ator autenticado`, 42501). Não concede privilégio novo: `service_role`
+já bypassa RLS, e `private` continua fora do PostgREST.
+
+### Armadilhas de teste registradas
+
+- **Rodar como `postgres` não testa RLS.** `set_config('request.jwt.claims', …)` muda só o que
+  `auth.jwt()` devolve — o que basta para exercitar o **trigger**, mas não a policy. Para RLS é
+  preciso `set local role authenticated` e `reset role` antes de contar.
+- **Contar como avaliador uma tabela que a policy filtra devolve 0 sem erro** — que é
+  indistinguível de "não há linhas". Criar o dado dentro do mesmo bloco e comparar com o que o
+  admin vê.
+- **Teste que casa string no código-fonte precisa tirar os comentários antes.** `tests/nav.test.ts`
+  reprovou na primeira execução porque o comentário que *explica* por que a página usa
+  `requireAtor()` contém a string `requireAdmin()`.

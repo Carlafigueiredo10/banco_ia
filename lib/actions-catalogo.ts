@@ -10,7 +10,7 @@ import {
 } from "./enums";
 // Model Card extraído para módulo próprio: `"use server"` só exporta async, e o teste anti-drift
 // precisa importar `camposModelCard` para comparar com a allowlist do trigger (migration 31).
-import { camposModelCard, txt, opcional, listaNorm } from "./model-card";
+import { camposModelCard, camposRisco, txt, opcional, listaNorm } from "./model-card";
 
 // A avaliação só funciona depois que a migration 31 (governança) estiver aplicada. Entre o deploy
 // deste código e a 31 existe uma janela em que os triggers estritos ainda não existem: uma
@@ -133,19 +133,36 @@ export async function concluirAvaliacao(formData: FormData) {
   // avaliador analisa, preenche os campos de risco e conclui — não faz sentido separar em dois
   // cliques, e o trigger da 31 trata isso como uma operação (a invalidação só dispara quando o
   // conteúdo muda SEM que a avaliação esteja sendo concluída na mesma sentença).
-  const { error } = await ator.supabase
+  // ⚠ `.eq("status_avaliacao", "pendente")` não é redundância com o trigger — é a única coisa que
+  //   distingue "concluir" de "reafirmar". O Postgres não sabe se o cliente REENVIOU `aprovada`
+  //   ou apenas não mencionou a coluna, então reenviar o mesmo veredito com parecer diferente é
+  //   tratado (corretamente, por desenho) como edição de conteúdo: invalida, volta para
+  //   `pendente` e retira do ar — enquanto esta action redirecionaria dizendo "concluída:
+  //   aprovada". É a corrida entre dois admins na fila, e o textarea nasce vazio, então os
+  //   pareceres SEMPRE diferem: quando a corrida acontece, ela é determinística.
+  //   Com o filtro, o segundo a clicar não escreve nada e recebe a mensagem certa.
+  const { data: aplicado, error } = await ator.supabase
     .from("catalogo_solucoes")
-    .update({ ...camposModelCard(formData), status_avaliacao: resultado, parecer })
-    .eq("id", id);
+    .update({
+      ...camposModelCard(formData),
+      ...camposRisco(formData),
+      status_avaliacao: resultado,
+      parecer,
+    })
+    .eq("id", id)
+    .eq("status_avaliacao", "pendente")
+    .select("id");
 
   // 42501 vem do trigger (transição inválida, coluna fora da allowlist, avaliação já concluída).
   if (error) redirect(`${base}?erro=${traduzErro(error)}`);
+  if (!aplicado || aplicado.length === 0) redirect(`${base}?erro=transicao`);
 
   // A auditoria da avaliação é gravada pelo TRIGGER, na mesma transação — não aqui. Uma policy de
   // insert em `auditoria` para o avaliador garantiria só QUEM inseriu, não que o evento aconteceu.
 
   revalidatePath("/admin/catalogo");
   revalidatePath("/admin");
+  revalidatePath("/admin/fila");
   redirect(`${base}?ok=${resultado}`);
 }
 
@@ -186,6 +203,7 @@ export async function reabrirAvaliacao(formData: FormData) {
 
   revalidatePath("/admin/catalogo");
   revalidatePath("/admin");
+  revalidatePath("/admin/fila");
   redirect(`${base}?ok=reaberta${despublicar ? "_despublicada" : ""}`);
 }
 
@@ -214,6 +232,7 @@ export async function enviarParaReavaliacao(formData: FormData) {
 
   revalidatePath("/admin/catalogo");
   revalidatePath("/admin");
+  revalidatePath("/admin/fila");
   redirect(`${base}?ok=reavaliacao`);
 }
 
