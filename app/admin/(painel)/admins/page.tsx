@@ -34,16 +34,27 @@ export default async function AdminsPage({
       {sp.ok && <p role="alert" style={banner("ok")}>{OKS[sp.ok] ?? "Feito."}</p>}
       {sp.erro && <p role="alert" style={banner("erro")}>{ERROS[sp.erro] ?? "Erro."}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 28, alignItems: "start" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".9rem" }}>
+      {/* `minmax(0, 1fr)` e não `1fr`: a faixa `1fr` tem largura mínima AUTOMÁTICA, então nunca
+          encolhe abaixo do conteúdo da tabela — ela empurrava o "Convidar" para fora da tela e
+          criava barra horizontal. É o motivo real, não o tamanho da fonte. */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 20, alignItems: "start" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: ".84rem", tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: "30%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "22%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "11%" }} />
+          </colgroup>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "2px solid #ccc" }}>
-              <th style={{ padding: "8px 10px" }}>E-mail</th>
-              <th style={{ padding: "8px 10px" }}>Perfil</th>
-              <th style={{ padding: "8px 10px" }}>Convidado por</th>
-              <th style={{ padding: "8px 10px" }}>Desde</th>
-              <th style={{ padding: "8px 10px" }}>Situação</th>
-              <th style={{ padding: "8px 10px" }}>Acesso</th>
+              <th style={th}>E-mail</th>
+              <th style={th}>Perfil</th>
+              <th style={th}>Convidado por</th>
+              <th style={th}>Desde</th>
+              <th style={th}>Situação</th>
+              <th style={th}>Acesso</th>
             </tr>
           </thead>
           <tbody>
@@ -51,28 +62,37 @@ export default async function AdminsPage({
               const revogado = Boolean(a.revogado_em);
               return (
                 <tr key={a.email} style={{ borderBottom: "1px solid #eee", opacity: revogado ? 0.6 : 1 }}>
-                  <td style={{ padding: "8px 10px" }}>{a.email}</td>
+                  <td style={td} title={a.email}>{a.email}</td>
                   {/* Sem esta coluna não dava para saber quem é o quê — e `papel` não é editável,
-                      então enxergar o erro cedo é a única defesa. */}
-                  <td style={{ padding: "8px 10px" }}>
-                    <span style={a.papel === "admin" ? chip("#e8eefb", "#1351b4") : chip("#eef1f6", "#44546a")}>
-                      {labelOf(PAPEL_ATOR, a.papel ?? "admin")}
+                      então enxergar o erro cedo é a única defesa.
+                      Rótulo curto na tabela: o longo ("Administrador (coordenação)") sozinho
+                      custava ~180px por linha. O select do convite mantém o texto completo, que é
+                      onde a escolha acontece e a diferença precisa estar escrita por extenso. */}
+                  <td style={td}>
+                    <span
+                      title={labelOf(PAPEL_ATOR, a.papel ?? "admin")}
+                      style={a.papel === "admin" ? chip("#e8eefb", "#1351b4") : chip("#eef1f6", "#44546a")}
+                    >
+                      {a.papel === "avaliador" ? "Avaliador" : "Admin"}
                     </span>
                   </td>
-                  <td style={{ padding: "8px 10px" }}>{a.convidado_por ?? "—"}</td>
-                  <td style={{ padding: "8px 10px" }}>
+                  <td style={td} title={a.convidado_por ?? undefined}>{a.convidado_por ?? "—"}</td>
+                  <td style={td}>
                     {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "—"}
                   </td>
-                  <td style={{ padding: "8px 10px" }}>
+                  <td style={td}>
                     {revogado ? (
-                      <span title={`Revogado por ${a.revogado_por ?? "—"}`} style={chip("#fdecea", "#721c24")}>
-                        Revogado em {new Date(a.revogado_em).toLocaleDateString("pt-BR")}
+                      <span
+                        title={`Revogado em ${new Date(a.revogado_em).toLocaleDateString("pt-BR")} por ${a.revogado_por ?? "—"}`}
+                        style={chip("#fdecea", "#721c24")}
+                      >
+                        Revogado {new Date(a.revogado_em).toLocaleDateString("pt-BR")}
                       </span>
                     ) : (
                       <span style={chip("#eafaef", "#155724")}>Ativo</span>
                     )}
                   </td>
-                  <td style={{ padding: "8px 10px" }}>
+                  <td style={td}>
                     <form action={revogarAdmin}>
                       <input type="hidden" name="email" value={a.email} />
                       <input type="hidden" name="acao" value={revogado ? "reativar" : "revogar"} />
@@ -83,7 +103,8 @@ export default async function AdminsPage({
                           border: `1px solid ${revogado ? "#155724" : "#721c24"}`,
                           color: revogado ? "#155724" : "#721c24",
                           borderRadius: 16,
-                          padding: "4px 14px",
+                          padding: "3px 10px",
+                          whiteSpace: "nowrap",
                           cursor: "pointer",
                           fontSize: ".8rem",
                           fontWeight: 600,
@@ -150,6 +171,17 @@ export default async function AdminsPage({
     </>
   );
 }
+
+// Com `tableLayout: fixed` a célula precisa saber o que fazer quando o texto não cabe: sem isto
+// um e-mail longo estoura a coluna e a tabela volta a empurrar o "Convidar" para fora. Cada célula
+// truncada leva `title`, então o valor inteiro continua acessível ao passar o mouse.
+const th: React.CSSProperties = {
+  padding: "7px 8px",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+const td: React.CSSProperties = { ...th, verticalAlign: "middle" };
 
 function chip(bg: string, cor: string): React.CSSProperties {
   return {
