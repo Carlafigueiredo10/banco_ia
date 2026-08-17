@@ -37,6 +37,23 @@ export default async function ListagemPage({
   const { data, error } = await selecionarSubmissoes(supabase, filtros);
   const rows = (data ?? []) as Row[];
 
+  // Quais submissões JÁ viraram item do catálogo. A tela de promover se protege sozinha ("esta
+  // submissão já foi promovida"), mas só depois de dois cliques — e com 77 para percorrer isso
+  // significa reabrir as já feitas para descobrir que já foram, perdendo o lugar toda vez.
+  const { data: jaNoCatalogo } = await supabase
+    .from("catalogo_solucoes")
+    .select("origem_submissao_id")
+    .not("origem_submissao_id", "is", null);
+  const promovidas = new Set(
+    (jaNoCatalogo ?? []).map((c) => c.origem_submissao_id as string)
+  );
+
+  // Filtro de trabalho, não de dado: esconde da LISTA, sem mexer no que o export leva — quem
+  // exporta quer a base inteira, quem está promovendo quer só o que falta.
+  const ocultar = params.promovidas === "ocultar";
+  const visiveis = ocultar ? rows.filter((r) => !promovidas.has(r.id as string)) : rows;
+  const jaFeitas = rows.filter((r) => promovidas.has(r.id as string)).length;
+
   const qs = new URLSearchParams();
   for (const k of CHAVES_FILTRO) if (filtros[k]) qs.set(k, filtros[k]!);
   if (filtros.q) qs.set("q", filtros.q);
@@ -114,7 +131,12 @@ export default async function ListagemPage({
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Submissões</h1>
-        <span style={{ color: "#666" }}>{rows.length} resultado(s)</span>
+        <span style={{ color: "#666" }}>
+          {visiveis.length} resultado(s)
+          {jaFeitas > 0 && (
+            <span style={{ color: "#155724" }}> · {jaFeitas} já promovida(s)</span>
+          )}
+        </span>
         <a
           href={exportHref}
           style={{ marginLeft: "auto", background: "#1351b4", color: "#fff", borderRadius: 20, padding: "8px 18px", textDecoration: "none", fontWeight: 600, fontSize: ".9rem" }}
@@ -140,6 +162,15 @@ export default async function ListagemPage({
           <label style={{ fontSize: ".85rem", gridColumn: "span 2" }}>
             <span style={{ display: "block", fontWeight: 600, marginBottom: 2 }}>Busca (solução, problema, órgão)</span>
             <input name="q" defaultValue={filtros.q ?? ""} style={selectStyle} />
+          </label>
+          <label style={{ fontSize: ".85rem", display: "flex", alignItems: "flex-end", gap: 6, paddingBottom: 6 }}>
+            <input
+              type="checkbox"
+              name="promovidas"
+              value="ocultar"
+              defaultChecked={ocultar}
+            />
+            <span style={{ fontWeight: 600 }}>Esconder já promovidas</span>
           </label>
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
@@ -168,9 +199,20 @@ export default async function ListagemPage({
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {visiveis.map((r) => (
               <tr key={r.id as string} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={td}><strong>{r.nome_solucao}</strong></td>
+                <td style={td}>
+                  <strong>{r.nome_solucao}</strong>
+                  {/* O selo é o que permite percorrer as 77 sem reabrir o que já foi feito.
+                      Promover COPIA — a submissão continua aqui como evidência, com o
+                      consentimento e a base legal —, então "já promovida" não some da lista:
+                      vira estado visível. */}
+                  {promovidas.has(r.id as string) && (
+                    <span style={{ marginLeft: 8, background: "#eafaef", color: "#155724", borderRadius: 12, padding: "2px 8px", fontSize: ".72rem", fontWeight: 600, whiteSpace: "nowrap" }}>
+                      Promovida
+                    </span>
+                  )}
+                </td>
                 <td style={td}>{r.orgao}</td>
                 <td style={td}>{r.uf}</td>
                 <td style={td}><EstagioBadge value={r.estagio} /></td>
@@ -183,8 +225,14 @@ export default async function ListagemPage({
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr><td style={td} colSpan={9}>Nenhuma submissão encontrada.</td></tr>
+            {visiveis.length === 0 && (
+              <tr>
+                <td style={td} colSpan={9}>
+                  {rows.length > 0 && ocultar
+                    ? "Todas as submissões deste filtro já foram promovidas."
+                    : "Nenhuma submissão encontrada."}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
