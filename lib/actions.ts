@@ -126,17 +126,44 @@ export async function convidarAdmin(formData: FormData) {
   const enviado = String(formData.get("papel") ?? "").trim();
   const papel = codes(PAPEL_ATOR).includes(enviado) ? enviado : "avaliador";
 
-  const { error } = await admin.supabase
-    .from("admins")
-    .insert({ email, papel, convidado_por: admin.email });
+  // UM passo. Antes eram dois — esta linha e um Invite manual no dashboard do Supabase — e eles
+  // não sabiam um do outro: dava para criar a autorização e esquecer a conta, sem nada avisar.
+  // A pessoa só descobria ao não conseguir entrar, numa tela que se recusa a explicar por quê
+  // (defesa contra enumeração). A Edge Function faz os dois na ordem certa.
+  //
+  // ⚠ A SERVICE_ROLE_KEY continua fora do app e fora da Vercel: quem a tem é o runtime do
+  //   Supabase, que a injeta no ambiente da função. Aqui só viaja o JWT de quem está logado —
+  //   `functions.invoke` o envia sozinho, e a função reconfere que o chamador é admin ativo.
+  //   A validação acima é de UX; a fronteira é lá.
+  const { data, error } = await admin.supabase.functions.invoke("convidar", {
+    body: { email, papel },
+  });
 
-  if (error) redirect(`${base}?erro=salvar`);
+  if (error) {
+    // supabase-js não expõe o corpo da resposta no `error` — ele vem no Response cru, em
+    // `error.context`. Sem isto, toda falha viraria o genérico "não foi possível", e o caso mais
+    // provável (SMTP recusou) ficaria indistinguível de e-mail já cadastrado.
+    let codigo = "salvar";
+    try {
+      const corpo = await (error as { context?: Response }).context?.json();
+      if (corpo?.erro) codigo = String(corpo.erro);
+    } catch {
+      // corpo ilegível: fica no genérico, que é honesto
+    }
+    redirect(`${base}?erro=${codigo}`);
+  }
+  if (!data?.ok) redirect(`${base}?erro=salvar`);
 
-  // O perfil entra na trilha: é a decisão consequente deste ato, não o e-mail.
-  await registrarAuditoria(admin, "convite_admin", { convidado: email, papel });
+  // A trilha é gravada pela própria função, com o ator derivado do token — não aqui. Registrar
+  // dos dois lados duplicaria o evento; registrar só aqui mentiria se a função tivesse falhado.
+
+  // `situacao` vem da função e diz qual dos quatro estados foi reconciliado. Um "Convite
+  // registrado." genérico esconderia, por exemplo, que a pessoa NÃO vai receber e-mail porque a
+  // conta dela já existia — e a coordenação ficaria esperando.
+  const situacao = typeof data.situacao === "string" ? data.situacao : "novo";
 
   revalidatePath(base);
-  redirect(`${base}?ok=1`);
+  redirect(`${base}?ok=${situacao}`);
 }
 
 // Revoga (ou reativa) o acesso de um admin — achado M-9.

@@ -4,11 +4,28 @@ import { PAPEL_ATOR, labelOf } from "@/lib/enums";
 
 const ERROS: Record<string, string> = {
   email: "Informe um e-mail válido.",
+  ja_existe: "Este e-mail já está na lista abaixo. Para mudar o perfil, revogue e convide de novo.",
+  // O caso que mais vai acontecer, e o único que a pessoa não resolve sozinha: o convite é criado
+  // pelo Supabase, mas quem entrega é o SMTP. Dizer "não foi possível salvar" aqui mandaria você
+  // procurar o erro no lugar errado.
+  convite:
+    "A autorização não foi criada porque o e-mail de convite não pôde ser enviado. Verifique a configuração de SMTP em Authentication → Emails no Supabase.",
+  autorizacao:
+    "A conta foi criada, mas a autorização falhou. Convide de novo — o e-mail existente será reaproveitado.",
+  sem_permissao: "Só o perfil administrador convida.",
+  sem_sessao: "Sua sessão expirou. Entre de novo.",
   salvar: "Não foi possível concluir a operação.",
   auto: "Você não pode revogar o próprio acesso — ficaria sem caminho de volta pelo painel.",
 };
 
+// Os três desfechos de um convite. Um "Convite registrado." genérico esconderia justamente o que
+// a pessoa precisa saber depois: se saiu e-mail ou não, e por quê.
 const OKS: Record<string, string> = {
+  novo: "Convite enviado. A pessoa recebe um e-mail para definir a senha e já aparece na lista.",
+  conta_criada:
+    "Faltava a conta, e ela acabou de ser criada — o e-mail de convite saiu agora. A autorização já existia, e o perfil dela foi mantido.",
+  autorizado:
+    "Esta pessoa já tinha conta no sistema, então NENHUM e-mail foi enviado — ela agora está autorizada e pode entrar pelo login normal.",
   "1": "Convite registrado.",
   revogado: "Acesso revogado. O efeito é imediato em todas as telas e exports.",
   reativado: "Acesso reativado.",
@@ -123,9 +140,8 @@ export default async function AdminsPage({
         <aside style={{ border: "1px solid #dde3ee", borderRadius: 8, padding: 16 }}>
           <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Convidar</h2>
           <p style={{ fontSize: ".8rem", color: "#555" }}>
-            O convite fica registrado na auditoria. <strong>São dois passos:</strong> esta linha
-            autoriza o e-mail no banco, mas a conta em si é criada pelo painel do Supabase
-            (Authentication → Users → Invite user) — o cadastro público está desligado.
+            Cria a conta e envia o e-mail de convite, num passo só. Fica registrado na auditoria.
+            O cadastro público está desligado — ninguém entra sem ser convidado aqui.
           </p>
           <form action={convidarAdmin}>
             <label style={{ display: "block", fontSize: ".85rem", fontWeight: 600, marginBottom: 8 }}>
