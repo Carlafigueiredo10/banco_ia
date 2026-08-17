@@ -10,6 +10,8 @@ import ModelCardCampos from "@/components/admin/ModelCardCampos";
 import {
   STATUS_AVALIACAO, ROTULO_PARECER, NIVEL_RISCO, SUPERVISAO, BLOCO_ORIGEM,
   AREA, NIVEL_GOVERNO, TIPO_SOLUCAO, SOBERANIA_CATALOGO, STATUS_SOLUCAO, MODALIDADES,
+  TECNOLOGIA_IA, TIPO_ATIVO, JA_USADO, PONTO_ATUAL, ESTAGIO, ABERTA, RECURSOS_PUBLICOS,
+  DADO_SENSIVEL, DISPOSICAO_ABERTO,
   labelOf, type Opcao,
 } from "@/lib/enums";
 
@@ -65,6 +67,11 @@ export default async function AvaliarPage({
     .maybeSingle();
 
   if (!item) notFound();
+
+  // RPC porque `submissoes` é admin-only na RLS — e continua sendo. A função é `security definer`
+  // com allowlist explícita (migration 35). Devolve null quando o item não veio de formulário.
+  const { data: submissao } = await ator.supabase.rpc("submissao_de", { p_catalogo_id: id });
+  const sub = (submissao ?? null) as Record<string, string> | null;
 
   const status: string = item.status_avaliacao ?? "pendente";
   const concluida = status === "aprovada" || status === "reprovada";
@@ -165,6 +172,54 @@ export default async function AvaliarPage({
           </div>
         )}
       </section>
+
+      {/* O que o órgão DECLAROU no formulário. `promoverSubmissao` copia para o catálogo o que a
+          vitrine precisa e deixa isto para trás — justamente o que sustenta um juízo sobre risco,
+          maturidade e soberania. Vem por RPC porque `submissoes` é admin-only na RLS e continua
+          sendo: a função `submissao_de` (migration 35) atravessa com allowlist explícita e nunca
+          devolve contato do submissor. */}
+      {sub && (
+        <section style={{ ...caixa, background: "#f9fbff" }}>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Declarado na submissão</h2>
+          <p style={{ color: "#666", fontSize: ".82rem", marginTop: 0 }}>
+            Texto do próprio órgão, como enviado no formulário — não passou por curadoria.
+          </p>
+
+          <Bloco rotulo="Problema que resolve" valor={sub.problema} />
+          <Bloco rotulo="Como funciona" valor={sub.como_funciona} />
+          <Bloco rotulo="Resultados declarados" valor={sub.resultados} />
+          <Bloco rotulo="Observações" valor={sub.observacoes} />
+
+          <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, margin: "12px 0 0", fontSize: ".88rem" }}>
+            <Campo rotulo="Tecnologia de IA" valor={labelOf(TECNOLOGIA_IA, sub.tecnologia_ia)} />
+            <Campo rotulo="Tipo de ativo" valor={labelOf(TIPO_ATIVO, sub.tipo_ativo)} />
+            <Campo rotulo="Já usado por" valor={labelOf(JA_USADO, sub.ja_usado)} />
+            <Campo rotulo="Ponto atual" valor={labelOf(PONTO_ATUAL, sub.ponto_atual)} />
+            <Campo rotulo="Estágio calculado" valor={labelOf(ESTAGIO, sub.estagio)} />
+            <Campo rotulo="Aberta / reusável" valor={labelOf(ABERTA, sub.aberta)} />
+            <Campo rotulo="Recursos públicos" valor={labelOf(RECURSOS_PUBLICOS, sub.recursos_publicos)} />
+            {/* Os dois que mais pesam num parecer de risco. */}
+            <Campo rotulo="Dado sensível" valor={labelOf(DADO_SENSIVEL, sub.dado_sensivel)} destaque={sub.dado_sensivel === "sim"} />
+            <Campo rotulo="Disposição p/ abrir" valor={labelOf(DISPOSICAO_ABERTO, sub.disposicao_aberto)} />
+          </dl>
+
+          {sub.links && (
+            <p style={{ margin: "12px 0 0", fontSize: ".85rem", wordBreak: "break-all" }}>
+              <span style={{ color: "#666" }}>Links informados: </span>{sub.links}
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Distinguir "não tem submissão por trás" de "está vazio" importa: são 38 itens que
+          entraram por carga de CSV, e quem avalia precisa saber que a falta de contexto é da
+          origem do dado, não descuido de quem submeteu. */}
+      {!sub && item.bloco === "formulario" && (
+        <p style={{ background: "#f5f7fb", border: "1px solid #dde3ee", borderRadius: 8, padding: "10px 14px", fontSize: ".85rem", color: "#555" }}>
+          Esta solução entrou por carga, sem formulário de origem vinculado — não há declaração do
+          órgão para consultar. Avalie pelo que está no cadastro acima e pelo link.
+        </p>
+      )}
 
       {/* Estado terminal: não se conclui de novo sem reabrir. A tela diz isso em vez de deixar a
           pessoa preencher e tomar 42501 do banco. */}
@@ -323,11 +378,25 @@ function Selecao({ nome, rotulo, opcoes, def }: { nome: string; rotulo: string; 
   );
 }
 
-function Campo({ rotulo, valor }: { rotulo: string; valor: string }) {
+function Campo({ rotulo, valor, destaque }: { rotulo: string; valor: string; destaque?: boolean }) {
   return (
     <div>
       <dt style={{ color: "#666", fontSize: ".78rem" }}>{rotulo}</dt>
-      <dd style={{ margin: 0 }}>{valor}</dd>
+      <dd style={{ margin: 0, color: destaque ? "#b3140e" : undefined, fontWeight: destaque ? 600 : undefined }}>
+        {valor}
+      </dd>
+    </div>
+  );
+}
+
+// Texto longo do formulário. Não renderiza quando vazio — uma seção com quatro rótulos e nada
+// embaixo faz parecer que o órgão não respondeu, quando o campo é opcional.
+function Bloco({ rotulo, valor }: { rotulo: string; valor?: string | null }) {
+  if (!valor) return null;
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <h3 style={{ fontSize: ".82rem", color: "#666", margin: "0 0 2px", fontWeight: 600 }}>{rotulo}</h3>
+      <p style={{ margin: 0, fontSize: ".9rem", whiteSpace: "pre-wrap" }}>{valor}</p>
     </div>
   );
 }
