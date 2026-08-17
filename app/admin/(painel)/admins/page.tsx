@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { convidarAdmin, revogarAdmin } from "@/lib/actions";
+import { PAPEL_ATOR, labelOf } from "@/lib/enums";
 
 const ERROS: Record<string, string> = {
   email: "Informe um e-mail válido.",
@@ -38,6 +39,7 @@ export default async function AdminsPage({
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "2px solid #ccc" }}>
               <th style={{ padding: "8px 10px" }}>E-mail</th>
+              <th style={{ padding: "8px 10px" }}>Perfil</th>
               <th style={{ padding: "8px 10px" }}>Convidado por</th>
               <th style={{ padding: "8px 10px" }}>Desde</th>
               <th style={{ padding: "8px 10px" }}>Situação</th>
@@ -50,6 +52,13 @@ export default async function AdminsPage({
               return (
                 <tr key={a.email} style={{ borderBottom: "1px solid #eee", opacity: revogado ? 0.6 : 1 }}>
                   <td style={{ padding: "8px 10px" }}>{a.email}</td>
+                  {/* Sem esta coluna não dava para saber quem é o quê — e `papel` não é editável,
+                      então enxergar o erro cedo é a única defesa. */}
+                  <td style={{ padding: "8px 10px" }}>
+                    <span style={a.papel === "admin" ? chip("#e8eefb", "#1351b4") : chip("#eef1f6", "#44546a")}>
+                      {labelOf(PAPEL_ATOR, a.papel ?? "admin")}
+                    </span>
+                  </td>
                   <td style={{ padding: "8px 10px" }}>{a.convidado_por ?? "—"}</td>
                   <td style={{ padding: "8px 10px" }}>
                     {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "—"}
@@ -91,7 +100,7 @@ export default async function AdminsPage({
         </table>
 
         <aside style={{ border: "1px solid #dde3ee", borderRadius: 8, padding: 16 }}>
-          <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Convidar admin</h2>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Convidar</h2>
           <p style={{ fontSize: ".8rem", color: "#555" }}>
             O convite fica registrado na auditoria. <strong>São dois passos:</strong> esta linha
             autoriza o e-mail no banco, mas a conta em si é criada pelo painel do Supabase
@@ -107,6 +116,28 @@ export default async function AdminsPage({
                 style={{ width: "100%", padding: "8px 10px", border: "1px solid #999", borderRadius: 4, marginTop: 4, fontWeight: 400 }}
               />
             </label>
+            {/* O perfil nasce no INSERT e NÃO pode ser editado depois (o grant não concede UPDATE
+                em `papel`, para ninguém se promover por PATCH). Errar aqui custa revogar e
+                convidar de novo — por isso o aviso, e por isso o padrão é o menor privilégio. */}
+            <label style={{ display: "block", fontSize: ".85rem", fontWeight: 600, marginBottom: 8 }}>
+              Perfil
+              <select
+                name="papel"
+                defaultValue="avaliador"
+                required
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #999", borderRadius: 4, marginTop: 4, fontWeight: 400 }}
+              >
+                {PAPEL_ATOR.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </label>
+            <p style={{ fontSize: ".78rem", color: "#8a5300", background: "#fff4e5", border: "1px solid #ffd9a0", borderRadius: 6, padding: "8px 10px", marginTop: 0, marginBottom: 10 }}>
+              <strong>Avaliador</strong> vê o catálogo e avalia. <strong>Administrador</strong> vê
+              também as submissões com nome, e-mail e telefone dos responsáveis, exporta CSV e gere
+              contas. O perfil <strong>não pode ser alterado depois</strong> — para trocar, revogue
+              e convide de novo.
+            </p>
             <button
               type="submit"
               style={{ background: "#1351b4", color: "#fff", border: "none", borderRadius: 16, padding: "8px 18px", cursor: "pointer", fontWeight: 600, width: "100%" }}

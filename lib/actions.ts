@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdmin, registrarAuditoria } from "./auth-guard";
-import { codes, STATUS_MATURACAO, TECNOLOGIA_IA } from "./enums";
+import { codes, STATUS_MATURACAO, TECNOLOGIA_IA, PAPEL_ATOR } from "./enums";
 
 // Edição de curadoria. Trava: status 'validada' exige confirmação humana explícita.
 export async function atualizarCuradoria(formData: FormData) {
@@ -99,7 +99,21 @@ export async function anonimizar(formData: FormData) {
   redirect(`${base}?anon=1`);
 }
 
-// Convite de novo admin (auto-gestão auditada).
+// Convite de nova conta (auto-gestão auditada), com PERFIL explícito.
+//
+// ⚠ Até aqui esta função inseria só `{ email, convidado_por }` e o `papel` caía no DEFAULT da
+//   coluna, que é 'admin'. Com a tela sem campo de perfil, convidar alguém para AVALIAR entregava
+//   a coordenação inteira — as 76 submissões com nome/e-mail/telefone, o export e a gestão de
+//   contas. Era o problema exato que as migrations 28→33 existem para resolver, aberto no último
+//   metro por uma omissão de formulário.
+//
+// ⚠ FAIL-CLOSED: papel ausente, inválido ou adulterado vira `avaliador`, nunca `admin`. Promover
+//   alguém a administrador tem de ser um ato deliberado e legível, não o que acontece quando o
+//   payload chega torto.
+//
+// ⚠ `papel` é gravável só no INSERT — o grant da migração de revogação não concede UPDATE nele,
+//   de propósito (senão um admin se promoveria, ou promoveria outro, por PATCH direto). Corolário
+//   operacional: perfil errado NÃO se corrige editando; revoga-se e convida-se de novo.
 export async function convidarAdmin(formData: FormData) {
   const admin = await getAdmin();
   if (!admin) redirect("/admin/login");
@@ -109,13 +123,17 @@ export async function convidarAdmin(formData: FormData) {
 
   if (!email || !email.includes("@") || email.length > 320) redirect(`${base}?erro=email`);
 
+  const enviado = String(formData.get("papel") ?? "").trim();
+  const papel = codes(PAPEL_ATOR).includes(enviado) ? enviado : "avaliador";
+
   const { error } = await admin.supabase
     .from("admins")
-    .insert({ email, convidado_por: admin.email });
+    .insert({ email, papel, convidado_por: admin.email });
 
   if (error) redirect(`${base}?erro=salvar`);
 
-  await registrarAuditoria(admin, "convite_admin", { convidado: email });
+  // O perfil entra na trilha: é a decisão consequente deste ato, não o e-mail.
+  await registrarAuditoria(admin, "convite_admin", { convidado: email, papel });
 
   revalidatePath(base);
   redirect(`${base}?ok=1`);
