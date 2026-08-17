@@ -87,6 +87,31 @@ describe("nav do painel × guard de cada página", () => {
     }
   });
 
+  // O callback de e-mail escolhe para onde a pessoa cai depois de clicar no link. Ele precisa
+  // (a) não mandar avaliador para página admin-only e (b) RESPEITAR um destino explícito — o
+  // link de convite pede `/admin/definir-senha`, e sobrescrevê-lo fazia a pessoa entrar com
+  // sessão válida e sem senha nenhuma, sem caminho de volta no login seguinte.
+  it("o callback não manda o avaliador para página admin-only", () => {
+    const cb = codigo(resolve(raiz, "app/auth/callback/route.ts"));
+    const linha = cb.match(/const alvo =.*/)?.[0] ?? "";
+    expect(linha, "não achei a escolha de destino no callback").toBeTruthy();
+
+    for (const adminOnly of ["/admin/catalogo", "/admin/indicadores", "/admin/admins"]) {
+      const arq = arquivoDaRota(adminOnly);
+      if (!existsSync(arq)) continue;
+      if (!/requireAdmin\s*\(/.test(codigo(arq))) continue;
+      expect(linha, `callback manda avaliador para ${adminOnly}, que é admin-only`)
+        .not.toContain(adminOnly);
+    }
+  });
+
+  it("o callback respeita um destino explícito (o convite pede /admin/definir-senha)", () => {
+    const cb = codigo(resolve(raiz, "app/auth/callback/route.ts"));
+    const linha = cb.match(/const alvo =.*/)?.[0] ?? "";
+    // O desvio por papel só pode valer para o destino PADRÃO; senão engole o `next` do convite.
+    expect(linha).toMatch(/destino\s*===\s*"\/admin"/);
+  });
+
   // `requireAdmin()` manda o avaliador para a fila em vez de acesso-negado. Sem isso, qualquer
   // página admin-only que ele alcance por link antigo ou histórico o joga na tela errada.
   it("requireAdmin desvia o avaliador para a fila", () => {

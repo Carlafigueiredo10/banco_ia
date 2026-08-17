@@ -59,9 +59,17 @@ export async function GET(request: Request) {
       await supabase.from("auditoria").insert({ ator_email: user.email, acao: "login" });
 
       // Avaliador não tem acesso a `/admin` (a lista de submissões é admin-only) — mandá-lo para
-      // lá significaria login bem-sucedido seguido de "acesso negado". Vai direto ao catálogo,
-      // que é a tela de trabalho dele.
-      const alvo = data.papel === "avaliador" ? "/admin/catalogo" : destino;
+      // lá significaria login bem-sucedido seguido de "acesso negado". A tela de trabalho dele é
+      // a FILA (`/admin/catalogo` também é admin-only; era o destino antigo, de antes de
+      // `/admin/fila` existir).
+      //
+      // ⚠ Só substituímos quando `destino` é o PADRÃO. Um destino pedido EXPLICITAMENTE precisa
+      //   ser respeitado — e o caso que importa é o convite, que aponta para
+      //   `/admin/definir-senha`. Sobrescrever aqui fazia a pessoa convidada entrar com sessão
+      //   válida e NENHUMA senha definida: funcionava uma vez, e no login seguinte ela não tinha
+      //   como voltar. `destino` já passou pela allowlist literal do achado A-2, então respeitá-lo
+      //   não reabre o open redirect.
+      const alvo = data.papel === "avaliador" && destino === "/admin" ? "/admin/fila" : destino;
       return NextResponse.redirect(new URL(alvo, url.origin));
     }
   }
