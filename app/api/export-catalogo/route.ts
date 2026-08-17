@@ -92,9 +92,10 @@ export async function GET(request: Request) {
   const linhas = (data ?? []).map((r) =>
     paraExibicao({
       ...r,
-      responsavel_nome: porId.get(r.id)?.nome ?? r.responsavel_nome ?? null,
-      responsavel_email: porId.get(r.id)?.email ?? r.responsavel_email ?? null,
-      responsavel_cargo: porId.get(r.id)?.cargo ?? r.responsavel_cargo ?? null,
+      // `catalogo_responsavel` é a fonte única desde a migration 34.
+      responsavel_nome: porId.get(r.id)?.nome ?? null,
+      responsavel_email: porId.get(r.id)?.email ?? null,
+      responsavel_cargo: porId.get(r.id)?.cargo ?? null,
     })
   );
   const csv = toCSV(linhas, COLUNAS);

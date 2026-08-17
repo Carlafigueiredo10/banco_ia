@@ -8,8 +8,17 @@ import {
 } from "@/lib/actions-catalogo";
 import ModelCardCampos from "@/components/admin/ModelCardCampos";
 import {
-  STATUS_AVALIACAO, ROTULO_PARECER, NIVEL_RISCO, SUPERVISAO, BLOCO_ORIGEM, labelOf, type Opcao,
+  STATUS_AVALIACAO, ROTULO_PARECER, NIVEL_RISCO, SUPERVISAO, BLOCO_ORIGEM,
+  AREA, NIVEL_GOVERNO, TIPO_SOLUCAO, SOBERANIA_CATALOGO, STATUS_SOLUCAO, MODALIDADES,
+  labelOf, type Opcao,
 } from "@/lib/enums";
+
+// Array do banco -> texto legível. Com `opcoes`, troca o código pelo rótulo (modalidades são
+// enum); sem, imprime o texto livre como está.
+function lista(valor: unknown, opcoes?: Opcao[]): string {
+  if (!Array.isArray(valor) || valor.length === 0) return "—";
+  return valor.map((v) => (opcoes ? labelOf(opcoes, String(v)) : String(v))).join(", ");
+}
 
 export const dynamic = "force-dynamic";
 
@@ -108,19 +117,52 @@ export default async function AvaliarPage({
 
       {/* Cadastrais em LEITURA: quem avalia não edita identidade da solução. Para o avaliador
           nem existe caminho de edição — /editar é admin-only. */}
+      {/* TUDO o que foi declarado sobre a solução, em leitura. Antes esta caixa mostrava quatro
+          campos, e quem avaliava não tinha como saber a área, a soberania, a licença, o impacto
+          nem as tags — ou seja, não tinha como avaliar. Quem edita identidade é o admin, em
+          /editar; aqui é só para ler.
+          ⚠ Nenhum campo de contato: a PII vive em `catalogo_responsavel`, com RLS só-admin, e as
+            colunas antigas de `catalogo_solucoes` foram dropadas na migration 34. */}
       <section style={caixa}>
         <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>{item.titulo}</h2>
-        <p style={{ color: "#555", margin: "4px 0 10px" }}>{item.descricao ?? "Sem descrição."}</p>
-        <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, margin: 0, fontSize: ".88rem" }}>
+        <p style={{ color: "#555", margin: "4px 0 12px", whiteSpace: "pre-wrap" }}>
+          {item.descricao ?? "Sem descrição."}
+        </p>
+
+        {item.link ? (
+          <p style={{ margin: "0 0 12px", fontSize: ".88rem" }}>
+            <a href={item.link} target="_blank" rel="noopener noreferrer">{item.link} ↗</a>
+          </p>
+        ) : (
+          <p style={{ margin: "0 0 12px", fontSize: ".85rem", color: "#8a5300" }}>
+            Sem link informado — não há como verificar a solução por fora do cadastro.
+          </p>
+        )}
+
+        <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, margin: 0, fontSize: ".88rem" }}>
           <Campo rotulo="Órgão" valor={item.orgao} />
           <Campo rotulo="Origem" valor={labelOf(BLOCO_ORIGEM, item.bloco)} />
-          <Campo rotulo="Risco declarado" valor={item.nivel_risco ? labelOf(NIVEL_RISCO, item.nivel_risco) : "—"} />
+          <Campo rotulo="Área" valor={labelOf(AREA, item.area)} />
+          <Campo rotulo="Nível de governo" valor={labelOf(NIVEL_GOVERNO, item.nivel_governo)} />
+          <Campo rotulo="UF" valor={item.uf ?? "—"} />
+          <Campo rotulo="Tipo de solução" valor={labelOf(TIPO_SOLUCAO, item.tipo_solucao)} />
+          <Campo rotulo="Soberania" valor={labelOf(SOBERANIA_CATALOGO, item.soberania)} />
+          <Campo rotulo="Licença" valor={item.licenca ?? "—"} />
+          <Campo rotulo="Ciclo de vida" valor={labelOf(STATUS_SOLUCAO, item.status)} />
+          <Campo rotulo="Modalidades" valor={lista(item.modalidades, MODALIDADES)} />
+          <Campo rotulo="Frameworks" valor={lista(item.frameworks)} />
+          <Campo rotulo="Tags" valor={lista(item.tags)} />
+          <Campo rotulo="Risco declarado" valor={labelOf(NIVEL_RISCO, item.nivel_risco)} />
+          <Campo rotulo="Supervisão declarada" valor={labelOf(SUPERVISAO, item.supervisao)} />
           <Campo rotulo="No ar" valor={item.publicado ? "Sim" : "Não"} />
+          <Campo rotulo="Fonte" valor={item.fonte ?? "—"} />
         </dl>
-        {item.link && (
-          <p style={{ marginBottom: 0, fontSize: ".88rem" }}>
-            <a href={item.link} target="_blank" rel="noopener noreferrer">Abrir a solução ↗</a>
-          </p>
+
+        {item.impacto && (
+          <div style={{ marginTop: 12 }}>
+            <dt style={{ color: "#666", fontSize: ".78rem" }}>Impacto / resultado declarado</dt>
+            <dd style={{ margin: "2px 0 0", fontSize: ".88rem", whiteSpace: "pre-wrap" }}>{item.impacto}</dd>
+          </div>
         )}
       </section>
 

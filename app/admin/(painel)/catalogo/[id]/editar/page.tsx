@@ -40,9 +40,12 @@ export default async function EditarCatalogoPage({
 
   const defaults = {
     ...data,
-    responsavel_nome: resp?.nome ?? data.responsavel_nome ?? null,
-    responsavel_email: resp?.email ?? data.responsavel_email ?? null,
-    responsavel_cargo: resp?.cargo ?? data.responsavel_cargo ?? null,
+    // Fonte ÚNICA desde a migration 34, que dropou as colunas equivalentes de
+    // `catalogo_solucoes`. O fallback para elas saiu junto: manter `?? data.responsavel_nome`
+    // sugeriria uma segunda origem que não existe mais.
+    responsavel_nome: resp?.nome ?? null,
+    responsavel_email: resp?.email ?? null,
+    responsavel_cargo: resp?.cargo ?? null,
   };
 
   return (
