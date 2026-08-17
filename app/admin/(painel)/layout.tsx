@@ -50,8 +50,14 @@ export default async function PainelLayout({
               <Link key={l.href} href={l.href} style={{ color: "#fff" }}>{l.rotulo}</Link>
             ))}
           </nav>
+          {/* "Definir senha" fica SEMPRE alcançável, e não só no instante em que se clica no link
+              do convite. Quem entra por magic link tem sessão mas pode não ter senha nenhuma — e
+              descobre isso no login seguinte, quando já não tem como voltar. Depender de cair na
+              tela certa no momento certo é frágil: o destino do link vem do template de e-mail,
+              que é configuração de painel e pode mudar sem ninguém tocar no repositório. */}
           <span style={{ marginLeft: "auto", fontSize: ".85rem", display: "flex", alignItems: "center", gap: 12 }}>
             {ator.email}
+            <Link href="/admin/definir-senha" style={{ color: "#ffffffcc" }}>Definir senha</Link>
             <LogoutButton />
           </span>
         </div>

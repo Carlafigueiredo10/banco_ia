@@ -93,7 +93,7 @@ describe("nav do painel × guard de cada página", () => {
   // sessão válida e sem senha nenhuma, sem caminho de volta no login seguinte.
   it("o callback não manda o avaliador para página admin-only", () => {
     const cb = codigo(resolve(raiz, "app/auth/callback/route.ts"));
-    const linha = cb.match(/const alvo =.*/)?.[0] ?? "";
+    const linha = cb.match(/const alvo =[\s\S]*?;/)?.[0] ?? "";
     expect(linha, "não achei a escolha de destino no callback").toBeTruthy();
 
     for (const adminOnly of ["/admin/catalogo", "/admin/indicadores", "/admin/admins"]) {
@@ -107,7 +107,7 @@ describe("nav do painel × guard de cada página", () => {
 
   it("o callback respeita um destino explícito (o convite pede /admin/definir-senha)", () => {
     const cb = codigo(resolve(raiz, "app/auth/callback/route.ts"));
-    const linha = cb.match(/const alvo =.*/)?.[0] ?? "";
+    const linha = cb.match(/const alvo =[\s\S]*?;/)?.[0] ?? "";
     // O desvio por papel só pode valer para o destino PADRÃO; senão engole o `next` do convite.
     expect(linha).toMatch(/destino\s*===\s*"\/admin"/);
   });

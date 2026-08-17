@@ -69,7 +69,21 @@ export async function GET(request: Request) {
       //   válida e NENHUMA senha definida: funcionava uma vez, e no login seguinte ela não tinha
       //   como voltar. `destino` já passou pela allowlist literal do achado A-2, então respeitá-lo
       //   não reabre o open redirect.
-      const alvo = data.papel === "avaliador" && destino === "/admin" ? "/admin/fila" : destino;
+      // Convite SEMPRE cai na tela de senha, independente do `next`. Quem chega por `type=invite`
+      // acabou de ganhar a conta e ainda não tem senha: sem isto ela entra com a sessão do link,
+      // trabalha, e no login seguinte não tem como voltar.
+      //
+      // ⚠ Não dependemos do `next` para isso porque ele vem do LINK, e o link vem do template de
+      //   e-mail — que é configuração de painel, fora do repositório. Se alguém trocar o template
+      //   para o padrão `token_hash` (o TODO em /admin/login prevê isso), `{{ .RedirectTo }}` some
+      //   e o `next` vai junto, em silêncio. O `type` chega na própria URL de verificação e não
+      //   depende de template nenhum.
+      const alvo =
+        type === "invite"
+          ? "/admin/definir-senha"
+          : data.papel === "avaliador" && destino === "/admin"
+            ? "/admin/fila"
+            : destino;
       return NextResponse.redirect(new URL(alvo, url.origin));
     }
   }
