@@ -10,7 +10,7 @@ import {
   STATUS_SOLUCAO, NIVEL_RISCO, TIPO_SOLUCAO, SUPERVISAO,
   SOBERANIA_CATALOGO, BLOCO_ORIGEM, MODALIDADES, TRANSFERENCIA_INTERNACIONAL,
 } from "../lib/enums";
-import { camposModelCard, camposRisco } from "../lib/model-card";
+import { camposModelCard, camposRisco, camposDeclaradosFechados } from "../lib/model-card";
 import { EVENTOS } from "../lib/metrica";
 import { calcEstagio, type PontoAtual, type JaUsado } from "../lib/estagio";
 
@@ -172,35 +172,54 @@ describe("Anti-drift: perfil avaliador e avaliação (migrations 28/29)", () => 
 //
 // A migration 32 é a versão VIGENTE da função (a 31 virou histórico).
 // =====================================================================================
+// `conteudo_avaliado` foi criada na 33 e a 36 não a redefine — a 36 só troca a allowlist dentro
+// de `governanca_catalogo()`. Ler cada coisa do arquivo que de fato a define.
 const schema33 = readFileSync(
   resolve(__dirname, "../supabase/migrations/33_veredito_revogado_e_conjuntos.sql"),
   "utf8"
 );
-function arraySql33(nome: string): string[] {
+const schema36 = readFileSync(
+  resolve(__dirname, "../supabase/migrations/36_avaliador_so_campos_fechados.sql"),
+  "utf8"
+);
+function arraySql36(nome: string): string[] {
   const re = new RegExp(`${nome}\\s+constant text\\[\\]\\s*:=\\s*array\\[([^\\]]*)\\]`);
-  const m = schema33.match(re);
-  if (!m) throw new Error(`array \`${nome}\` não encontrado em 33_*`);
+  const m = schema36.match(re);
+  if (!m) throw new Error(`array \`${nome}\` não encontrado em 36_*`);
   // Tira os comentários antes de garimpar os literais: um `--` com apóstrofo viraria coluna.
   return [...m[1].replace(/--[^\n]*/g, "").matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
 
-describe("Anti-drift: trigger de governança da avaliação (migration 33)", () => {
-  // Os TRÊS de sistema. `nivel_risco` e `supervisao` saíram desta lista e viraram `camposRisco()`:
-  // enquanto eram nomes escritos à mão aqui, o teste ficava verde escondendo que eles estavam na
-  // allowlist do banco e NENHUMA tela do avaliador os enviava — privilégio inalcançável, que é o
-  // espelho do 403 numa tela que parece funcionar. Lista literal aqui embute a lacuna; função a expõe.
+describe("Anti-drift: trigger de governança da avaliação (migration 36)", () => {
+  // Os TRÊS de sistema. Tudo o mais entra por FUNÇÃO, nunca como nome literal: enquanto
+  // `nivel_risco`/`supervisao` eram escritos à mão aqui, o teste ficava verde escondendo que eles
+  // estavam na allowlist do banco e NENHUMA tela do avaliador os enviava — privilégio
+  // inalcançável, o espelho do 403 numa tela que parece funcionar.
   // `atualizado_em` fica porque `trg_catalogo_atualizado_em` é BEFORE e dispara antes desta função.
   const TECNICOS = ["parecer", "status_avaliacao", "atualizado_em"];
 
   const modelCard = Object.keys(camposModelCard(new FormData()));
   const risco = Object.keys(camposRisco(new FormData()));
-  const allowlist = arraySql33("colunas_avaliador");
-  const naoInvalidam = arraySql33("colunas_nao_invalidam");
+  const fechados = Object.keys(camposDeclaradosFechados(new FormData()));
+  const allowlist = arraySql36("colunas_avaliador");
+  const naoInvalidam = arraySql36("colunas_nao_invalidam");
 
   // IGUALDADE, não subconjunto, e nos dois sentidos: campo que falta no SQL vira 403 numa tela
   // que parece funcionar; campo a mais é privilégio silencioso.
-  it("allowlist do avaliador = camposModelCard() + camposRisco() + os três de sistema", () => {
-    expect(new Set(allowlist)).toEqual(new Set([...modelCard, ...risco, ...TECNICOS]));
+  // MUDOU NA MIGRATION 36: o Model Card saiu da allowlist. 14 dos seus 17 campos são texto ABERTO
+  // e o `anon` os lê — deixá-los com o avaliador punha texto livre no site público sem revisão.
+  it("allowlist do avaliador = camposRisco() + camposDeclaradosFechados() + os três de sistema", () => {
+    expect(new Set(allowlist)).toEqual(new Set([...risco, ...fechados, ...TECNICOS]));
+  });
+
+  // O espelho fail-closed, e o teste que mais protege daqui pra frente: pega "alguém devolveu
+  // `impacto_etico` ao avaliador" sem depender de lista literal nenhuma.
+  it("nenhum campo aberto do Model Card volta para a allowlist do avaliador", () => {
+    for (const campo of modelCard) {
+      if (fechados.includes(campo)) continue; // os três fechados são dos dois perfis, de propósito
+      expect(allowlist, `${campo} é aberto e público — não pode estar na allowlist do avaliador`)
+        .not.toContain(campo);
+    }
   });
 
   it("allowlist não tem duplicata (duplicata esconde erro de edição)", () => {
@@ -232,6 +251,8 @@ describe("Anti-drift: trigger de governança da avaliação (migration 33)", () 
   // O espelho: nenhum campo de CONTEÚDO pode estar excluído, ou o avaliador altera o objeto
   // avaliado sem derrubar a própria avaliação que deu.
   it("nenhum campo do Model Card ou de risco escapa da invalidação", () => {
+    // `colunas_nao_invalidam` é outra lista, e NÃO mudou na 36: quem edita continua derrubando a
+    // avaliação, seja admin ou avaliador. O que a 36 mudou foi QUEM pode editar.
     const conteudo = [...modelCard, ...risco, "parecer", "titulo", "descricao", "orgao",
                       "link", "soberania", "impacto", "licenca", "area"];
     for (const campo of conteudo) {
@@ -252,7 +273,7 @@ describe("Anti-drift: trigger de governança da avaliação (migration 33)", () 
   // grupos_afetados/mitigacoes seria regressão de polaridade: são listas de texto livre cuja
   // ordem é semântica (repriorizar mitigação de risco é mudança real).
   it("a normalização de ordem cobre modalidades e nada mais", () => {
-    const fn = schema33.match(/create or replace function private\.conteudo_avaliado[\s\S]*?\$\$;/);
+    const fn = schema33.match(/create or replace function private.conteudo_avaliado[\s\S]*?\$\$;/);
     expect(fn, "função conteudo_avaliado não encontrada na 33").toBeTruthy();
     const chaves = [...fn![0].matchAll(/jsonb_build_object\(\s*'([^']+)'/g)].map((x) => x[1]);
     expect(chaves).toEqual(["modalidades"]);
@@ -341,4 +362,45 @@ describe("anti-drift: estagio (preview TS) cobre todas as combinações da regra
       });
     }
   }
+});
+
+// =====================================================================================
+// A8 (metade de código) — `parecer` nunca entra na projeção pública.
+//
+// A frase que a migration 36 permite sustentar é "texto livre escrito por avaliador nunca chega
+// ao público". Ela tem duas barreiras, e nenhuma basta sozinha:
+//   1. BANCO: o `anon` não tem SELECT em `parecer`. É a barreira de ACESSO, verificada na matriz
+//      de docs/RLS_TESTES.md — não dá para checá-la daqui, sem conexão.
+//   2. CÓDIGO: a vitrine projeta uma lista EXPLÍCITA de colunas, e `parecer` não pode entrar nela.
+//      É o que este teste guarda.
+//
+// Sem (2), alguém acrescentaria `parecer` ao `COLS` e a exposição aconteceria antes de qualquer
+// revisão de RLS. Sem (1), abrir o SELECT no futuro tornaria a frase falsa sem nada falhar.
+// =====================================================================================
+describe("`parecer` não vaza pela vitrine pública", () => {
+  const publicas = [
+    "../app/catalogo/page.tsx",
+    "../app/catalogo/[id]/page.tsx",
+  ];
+
+  for (const rel of publicas) {
+    it(`${rel} não projeta nem renderiza parecer`, () => {
+      const fonte = readFileSync(resolve(__dirname, rel), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^\s*\/\/.*$/gm, "")
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+      expect(fonte, "a vitrine é anônima: parecer é interno, e só o admin o lê")
+        .not.toMatch(/parecer/);
+    });
+  }
+
+  // A projeção precisa continuar sendo uma lista explícita. Um `select("*")` traria `parecer`
+  // junto sem ninguém escrever a palavra em lugar nenhum — e o teste acima passaria.
+  it("a vitrine seleciona colunas explícitas, nunca *", () => {
+    for (const rel of publicas) {
+      const fonte = readFileSync(resolve(__dirname, rel), "utf8");
+      expect(fonte, `${rel} usa select("*") — traria parecer sem citar o nome`)
+        .not.toMatch(/\.select\(\s*["'`]\*/);
+    }
+  });
 });

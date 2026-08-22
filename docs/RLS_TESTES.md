@@ -353,3 +353,59 @@ já bypassa RLS, e `private` continua fora do PostgREST.
 - **Teste que casa string no código-fonte precisa tirar os comentários antes.** `tests/nav.test.ts`
   reprovou na primeira execução porque o comentário que *explica* por que a página usa
   `requireAtor()` contém a string `requireAdmin()`.
+
+## Avaliador só escreve campo fechado (migration 36)
+
+Origem: a coordenação pediu para devolver à promoção os campos abertos do avaliador. A medição
+mostrou algo mais grave que "campos demais":
+
+- a allowlist da 33 tinha **22 entradas** — 20 de conteúdo + `status_avaliacao` + `atualizado_em`;
+- **19 das 20 de conteúdo** eram lidas pelo `anon` (migration 18) e renderizadas em `/catalogo/[id]`;
+- **13 das 19** eram texto livre;
+- `parecer` era a única de conteúdo **interna**.
+
+O avaliador publicava texto livre no site, sem revisão. Depois da 36 vale, e é testável:
+**"texto livre escrito por avaliador nunca chega ao público."**
+
+Regra derivada: **campo ABERTO é da coordenação; campo FECHADO pode ser do avaliador.**
+Allowlist final (8): `nivel_risco`, `supervisao` (julgamento) · `hospedagem_inferencia`,
+`transferencia_internacional`, `ia_generativa` (conferência do declarado) · `parecer`,
+`status_avaliacao` · `atualizado_em`.
+
+### Bateria — com a função candidata ativa em bloco revertido
+
+| # | Caso | Esperado |
+|---|---|---|
+| A1 | avaliador escreve `impacto_etico` | 42501 |
+| A2 | avaliador escreve `versao` · `mitigacoes` · `robustez` · `ano_inicio` | 42501 em cada |
+| A3 | avaliador escreve `nivel_risco` + `supervisao` | passa |
+| A4 | avaliador escreve os 3 declarados fechados | passa |
+| A5 | avaliador conclui: 5 fechados + parecer + status numa sentença | passa, autoria carimbada |
+| A6 | admin escreve `impacto_etico` e demais abertos | passa |
+| A7 | regressões da 33 (reordenar `modalidades`, `status`/`tags`, veredito revogado, publicar reprovada) | inalteradas |
+| A8 | `parecer` permanece interno | ver abaixo |
+
+⚠ **A1/A2 não valem contra a função 33** — lá esses updates são permitidos, e testá-los antes de
+instalar a candidata dá falso vermelho. A ordem é: medir estado com a 33 viva → instalar a
+candidata dentro do bloco → A1–A8 → `raise` para reverter.
+
+### A8 — duas barreiras, nenhuma basta sozinha
+
+1. **Banco:** `anon` não tem SELECT em `parecer`. Barreira de **acesso**.
+2. **Código:** `parecer` fora das projeções explícitas `COLS` de `app/catalogo/page.tsx` e
+   `app/catalogo/[id]/page.tsx`, e a projeção continua sendo lista explícita — nunca `select("*")`,
+   que traria a coluna sem ninguém escrever o nome. Guardado em `tests/drift.test.ts`.
+
+O `grep` sozinho prova não exposição pela vitrine de hoje, não confidencialidade. Sem (1), abrir o
+SELECT no futuro tornaria a frase institucional falsa sem nada falhar.
+
+### Ordem de deploy
+
+Código novo **primeiro**, migration depois. Aplicar a 36 antes deixaria o `concluirAvaliacao`
+implantado enviando os 17 campos do Model Card, 14 já fora da allowlist. A quebra não seria total —
+a guarda compara `jsonb`, e valor idêntico ao persistido não dispara 42501 —, mas vira **falha
+condicional numa tela que aparenta funcionar**: acontece quando o avaliador edita um desses campos,
+ou quando `trim`/dedup de `listaNorm` faz o valor enviado diferir do armazenado.
+
+Rollback: depois da 36, voltar o app ao código antigo **não é compatível**. Congelar com
+`AVALIACAO_ENABLED=false` antes, nunca reabrir a allowlist às pressas.

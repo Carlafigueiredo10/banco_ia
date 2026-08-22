@@ -54,10 +54,14 @@ export function anoOpcional(formData: FormData, campo: string): number | null {
 // Campos do model card / conformidade — ALLOWLIST única, normalizada no servidor, reusada por
 // criar, editar e promover.
 //
-// ⚠ ANTI-DRIFT COM O BANCO: as chaves deste objeto TÊM de ser exatamente as colunas de
-//   `colunas_avaliador` no trigger da migration 31 (menos `parecer`, `status_avaliacao` e
-//   `atualizado_em`, que não vêm do formulário). O teste compara nos DOIS sentidos: campo que
-//   falta aqui vira 403 para o avaliador; campo a mais lá seria privilégio silencioso.
+// ⚠ ESTES CAMPOS SÃO DA COORDENAÇÃO, não do avaliador — mudou na migration 36. Antes eles
+//   espelhavam a allowlist do trigger; hoje 14 dos 17 são exclusivos do admin, porque são TEXTO
+//   ABERTO e o `anon` os lê: deixá-los com o avaliador significava texto livre indo ao site
+//   público sem revisão. Os três fechados (`hospedagem_inferencia`,
+//   `transferencia_internacional`, `ia_generativa`) continuam nos dois perfis, via
+//   `camposDeclaradosFechados()`.
+//   O anti-drift agora compara a allowlist com camposRisco() + camposDeclaradosFechados(), e
+//   guarda o espelho: nenhuma chave daqui, fora aquelas três, pode aparecer na allowlist.
 export function camposModelCard(formData: FormData) {
   return {
     versao: txt(formData, "versao", 60),
@@ -92,10 +96,27 @@ export function camposModelCard(formData: FormData) {
 //   avaliador enviava os dois — nem `camposModelCard` os continha. O privilégio existia no banco
 //   e era inalcançável, e o teste anti-drift não pegava porque a lista de "técnicos" era escrita
 //   à mão e embutia a lacuna em vez de expô-la. Com esta função, o teste compara
-//   allowlist == camposModelCard() + camposRisco() + os TRÊS de sistema.
+//   allowlist == camposRisco() + camposDeclaradosFechados() + os TRÊS de sistema.
 export function camposRisco(formData: FormData) {
   return {
     nivel_risco: opcional(formData, "nivel_risco", codes(NIVEL_RISCO)),
     supervisao: opcional(formData, "supervisao", codes(SUPERVISAO)),
+  };
+}
+
+// Os TRÊS campos fechados do Model Card, que o AVALIADOR também escreve. Ele confere e corrige a
+// autodeclaração do órgão sem produzir texto: vocabulário fechado não vira conteúdo livre no site.
+//
+// ⚠ Sobrepõe-se de propósito a `camposModelCard()`. Os dois perfis escrevem estes três; o que muda
+//   é que só o admin escreve os outros 14, que são abertos e públicos.
+export function camposDeclaradosFechados(formData: FormData) {
+  return {
+    hospedagem_inferencia: opcional(formData, "hospedagem_inferencia", codes(HOSPEDAGEM_INFERENCIA)),
+    transferencia_internacional: opcional(
+      formData,
+      "transferencia_internacional",
+      codes(TRANSFERENCIA_INTERNACIONAL)
+    ),
+    ia_generativa: triestado(formData, "ia_generativa"),
   };
 }

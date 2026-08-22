@@ -6,14 +6,20 @@ import {
   reabrirAvaliacao,
   enviarParaReavaliacao,
 } from "@/lib/actions-catalogo";
-import ModelCardCampos from "@/components/admin/ModelCardCampos";
 import {
   STATUS_AVALIACAO, ROTULO_PARECER, NIVEL_RISCO, SUPERVISAO, BLOCO_ORIGEM,
   AREA, NIVEL_GOVERNO, TIPO_SOLUCAO, SOBERANIA_CATALOGO, STATUS_SOLUCAO, MODALIDADES,
   TECNOLOGIA_IA, TIPO_ATIVO, JA_USADO, PONTO_ATUAL, ESTAGIO, ABERTA, RECURSOS_PUBLICOS,
-  DADO_SENSIVEL, DISPOSICAO_ABERTO,
+  DADO_SENSIVEL, DISPOSICAO_ABERTO, HOSPEDAGEM_INFERENCIA, TRANSFERENCIA_INTERNACIONAL,
   labelOf, type Opcao,
 } from "@/lib/enums";
+
+// Local, como em ModelCardCampos: é o par do tri-estado, não vocabulário de domínio.
+const SIM_NAO: Opcao[] = [
+  { value: "sim", label: "Sim" },
+  { value: "nao", label: "Não" },
+];
+
 
 // Array do banco -> texto legível. Com `opcoes`, troca o código pelo rótulo (modalidades são
 // enum); sem, imprime o texto livre como está.
@@ -285,23 +291,75 @@ export default async function AvaliarPage({
             </section>
           )}
 
-          {/* Classificação de risco e regime de supervisão. Estavam na allowlist do avaliador no
-              trigger desde a 31 — "o núcleo da avaliação, não adorno" — mas nenhuma tela do
-              avaliador os enviava: o privilégio existia no banco e era inalcançável, e a vitrine
-              seguia exibindo a autodeclaração do órgão carimbada como avaliação concluída. */}
+          {/* Os únicos campos que o avaliador ESCREVE além do parecer — todos de vocabulário
+              fechado (migration 36). Dois grupos, porque são atos diferentes: RISCO e SUPERVISÃO
+              são o julgamento dele; os três seguintes são CONFERÊNCIA do que o órgão declarou.
+              Fechado é o critério: enum não vira texto livre no site público. */}
           <section style={caixa}>
-            <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Classificação</h2>
-            <p style={{ color: "#666", fontSize: ".85rem", marginTop: 0 }}>
-              O valor exibido é o declarado pelo órgão. Confirme ou corrija — é esta classificação
-              que a vitrine pública mostra, e é ela que alguém pode vir a questionar.
+            <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Classificação e conferência</h2>
+
+            <h3 style={{ fontSize: ".85rem", color: "#666", margin: "10px 0 4px", fontWeight: 600 }}>
+              Sua classificação
+            </h3>
+            <p style={{ color: "#666", fontSize: ".85rem", margin: "0 0 8px" }}>
+              É esta classificação que a vitrine pública mostra, e é ela que alguém pode vir a
+              questionar.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
               <Selecao nome="nivel_risco" rotulo="Nível de risco" opcoes={NIVEL_RISCO} def={item.nivel_risco} />
               <Selecao nome="supervisao" rotulo="Supervisão humana" opcoes={SUPERVISAO} def={item.supervisao} />
             </div>
+
+            <h3 style={{ fontSize: ".85rem", color: "#666", margin: "16px 0 4px", fontWeight: 600 }}>
+              Conferência do declarado
+            </h3>
+            <p style={{ color: "#666", fontSize: ".85rem", margin: "0 0 8px" }}>
+              O valor exibido foi declarado pelo órgão. Confirme ou corrija.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <Selecao nome="hospedagem_inferencia" rotulo="Hospedagem da inferência" opcoes={HOSPEDAGEM_INFERENCIA} def={item.hospedagem_inferencia} />
+              <Selecao nome="transferencia_internacional" rotulo="Transferência internacional" opcoes={TRANSFERENCIA_INTERNACIONAL} def={item.transferencia_internacional} />
+              <Selecao
+                nome="ia_generativa"
+                rotulo="Usa IA generativa?"
+                opcoes={SIM_NAO}
+                def={item.ia_generativa === true ? "sim" : item.ia_generativa === false ? "nao" : ""}
+              />
+            </div>
           </section>
 
-          <ModelCardCampos defaults={item} />
+          {/* Os 14 campos que a migration 36 tirou do avaliador. Ele PRECISA lê-los para julgar,
+              mas não os escreve: são texto ABERTO e o `anon` os lê, então editá-los aqui punha
+              texto livre no site público sem revisão.
+              ⚠ PROVENIÊNCIA: isto é o Model Card do CATÁLOGO — peça curada —, e não o que o órgão
+                declarou no formulário. "Declarado na submissão" é outro bloco, alimentado pela
+                migration 35, e 88 itens do catálogo sequer têm submissão de origem. Misturar os
+                dois rótulos criaria as duas verdades que a 35 existe para evitar. */}
+          <section style={{ ...caixa, background: "#fafbfc" }}>
+            <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Model Card — curadoria da coordenação</h2>
+            <p style={{ color: "#666", fontSize: ".82rem", marginTop: 0 }}>
+              Somente leitura para o avaliador. A edição e a publicação destes dados são
+              responsabilidade da coordenação.
+            </p>
+
+            <Bloco rotulo="Impacto social / ético" valor={item.impacto_etico} />
+            <Bloco rotulo="Avaliação de viés" valor={item.avaliacao_vies} />
+            <Bloco rotulo="Robustez" valor={item.robustez} />
+            <Bloco rotulo="Explicabilidade" valor={item.explicabilidade} />
+            <Bloco rotulo="Supervisão humana — descrição" valor={item.supervisao_descricao} />
+
+            <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, margin: "12px 0 0", fontSize: ".88rem" }}>
+              <Campo rotulo="Versão" valor={item.versao ?? "—"} />
+              <Campo rotulo="Em uso desde" valor={item.ano_inicio != null ? String(item.ano_inicio) : "—"} />
+              <Campo rotulo="Grupos afetados" valor={lista(item.grupos_afetados)} />
+              <Campo rotulo="Mitigações" valor={lista(item.mitigacoes)} />
+              <Campo rotulo="Certificação" valor={item.certificacao ?? "—"} />
+              <Campo rotulo="Auditoria / certificações" valor={item.auditoria_certificacoes ?? "—"} />
+              <Campo rotulo="Canal de reclamação" valor={item.canal_reclamacao ?? "—"} />
+              <Campo rotulo="Responsável LGPD" valor={item.responsavel_lgpd ?? "—"} />
+              <Campo rotulo="Próxima revisão" valor={item.data_revisao_proxima ?? "—"} />
+            </dl>
+          </section>
 
           <section style={caixa}>
             <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>

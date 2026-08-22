@@ -10,7 +10,7 @@ import {
 } from "./enums";
 // Model Card extraído para módulo próprio: `"use server"` só exporta async, e o teste anti-drift
 // precisa importar `camposModelCard` para comparar com a allowlist do trigger (migration 31).
-import { camposModelCard, camposRisco, txt, opcional, listaNorm } from "./model-card";
+import { camposModelCard, camposRisco, camposDeclaradosFechados, txt, opcional, listaNorm } from "./model-card";
 
 // A avaliação só funciona depois que a migration 31 (governança) estiver aplicada. Entre o deploy
 // deste código e a 31 existe uma janela em que os triggers estritos ainda não existem: uma
@@ -129,10 +129,10 @@ export async function concluirAvaliacao(formData: FormData) {
   const parecer = String(formData.get("parecer") ?? "").trim();
   if (!parecer) redirect(`${base}?erro=parecer`);
 
-  // Salva o Model Card JUNTO com a conclusão, numa sentença só. É o caso `c1` da matriz: o
-  // avaliador analisa, preenche os campos de risco e conclui — não faz sentido separar em dois
-  // cliques, e o trigger da 31 trata isso como uma operação (a invalidação só dispara quando o
-  // conteúdo muda SEM que a avaliação esteja sendo concluída na mesma sentença).
+  // Classificação e conclusão numa sentença só: o avaliador analisa, classifica risco e
+  // supervisão, confere os três declarados fechados e conclui — não faz sentido separar em dois
+  // cliques, e o trigger trata isso como uma operação (a invalidação só dispara quando o conteúdo
+  // muda SEM que a avaliação esteja sendo concluída na mesma sentença).
   // ⚠ `.eq("status_avaliacao", "pendente")` não é redundância com o trigger — é a única coisa que
   //   distingue "concluir" de "reafirmar". O Postgres não sabe se o cliente REENVIOU `aprovada`
   //   ou apenas não mencionou a coluna, então reenviar o mesmo veredito com parecer diferente é
@@ -144,8 +144,12 @@ export async function concluirAvaliacao(formData: FormData) {
   const { data: aplicado, error } = await ator.supabase
     .from("catalogo_solucoes")
     .update({
-      ...camposModelCard(formData),
+      // ⚠ O Model Card NÃO vai mais daqui (migration 36): 14 dos 17 campos são texto ABERTO e o
+      //   `anon` os lê, então deixá-los com o avaliador punha texto livre no site público sem
+      //   revisão de ninguém. Ele escreve só vocabulário fechado; o texto dele é o `parecer`,
+      //   que é interno. Os abertos passaram a ser da coordenação, na promoção e na edição.
       ...camposRisco(formData),
+      ...camposDeclaradosFechados(formData),
       status_avaliacao: resultado,
       parecer,
     })

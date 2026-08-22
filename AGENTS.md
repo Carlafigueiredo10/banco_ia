@@ -56,8 +56,10 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   PATCH direto no PostgREST — foi o vício de A-3, da 24→25 e da auditoria.
 - **A allowlist do avaliador é fechada e testada por IGUALDADE.** Coluna nova em
   `catalogo_solucoes` nasce **proibida** ao avaliador. `tests/drift.test.ts` compara nos dois
-  sentidos com `camposModelCard()` (`lib/model-card.ts`): campo faltando vira 403 numa tela que
-  parece funcionar; campo a mais é privilégio silencioso.
+  sentidos com `camposRisco() + camposDeclaradosFechados()` (`lib/model-card.ts`): campo faltando
+  vira 403 numa tela que parece funcionar; campo a mais é privilégio silencioso.
+  ⚠ Era `camposModelCard()` até a migration 36 — mudou porque o Model Card saiu da mão do
+  avaliador; ver o princípio do texto livre, abaixo.
   ⚠ Esse teste **não existia** até a migration 32, embora este arquivo e o comentário da 31
   afirmassem por escrito que sim. Garantia que só está na documentação não é garantia — é a mesma
   lacuna que gerou A-1 e A-5. Antes de citar um teste como prova, `grep` nele.
@@ -72,6 +74,18 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   `licenca`, `tags`…) ficaram de fora e trocar qualquer uma preservava a aprovação. Coluna nova
   nasce **invalidando**, e nome digitado errado passa a invalidar de mais (ruído visível) em vez
   de menos (silêncio).
+- **Texto livre escrito por avaliador nunca chega ao público** (migration 36). Medido antes:
+  a allowlist da 33 tinha 22 entradas — 20 de conteúdo + `status_avaliacao` + `atualizado_em` —, e
+  **19 das 20 de conteúdo eram lidas pelo `anon`**, 13 delas texto livre. Só o `parecer` era
+  interno. Ou seja, o avaliador publicava no site sem revisão de ninguém.
+  Regra derivada, que decide caso novo sem reunião: **campo ABERTO é da coordenação; campo FECHADO
+  pode ser do avaliador.** Ele fica com `nivel_risco` e `supervisao` (julgamento) mais
+  `hospedagem_inferencia`, `transferencia_internacional` e `ia_generativa` (conferência do
+  declarado) — todos enum —, e escreve texto só no `parecer`, que é interno.
+  ⚠ A allowlist entra por **função** (`camposRisco()`, `camposDeclaradosFechados()`), nunca por
+  nome literal no teste, e `tests/drift.test.ts` guarda o espelho fail-closed: nenhum campo aberto
+  do Model Card pode voltar para ela. A outra metade da frase — `parecer` fora da projeção pública
+  — tem teste próprio sobre `app/catalogo/**`.
 - **Perder o veredito TIRA DO AR** (migration 32). Sair de `aprovada`/`reprovada` para `pendente`
   despublica, em qualquer bloco — o banco reconcilia, não o chamador. O `publicado + pendente` do
   legado nunca avaliado (`software_publico`) continua permitido, porque a regra exige *sair* de um
@@ -135,7 +149,7 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   visitante. `tests/sinapses.test.ts` guarda isso; a rota aparecer como `ƒ` no build é esperado.
 
 ## Migrations
-`supabase/migrations/` (01→33), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
+`supabase/migrations/` (01→36), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
 RLS (`docs/RLS_TESTES.md`) antes de deploy.
 
 ⚠ **Função em `private` chamada pelo trigger exige `usage` no schema para TODO papel que escreve.**
