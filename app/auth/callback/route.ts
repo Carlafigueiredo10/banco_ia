@@ -48,6 +48,22 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (user?.email) {
+    // AUTORIZAÇÃO ORIENTADA PELO DESTINO, nunca pelo papel que aparecer primeiro.
+    //
+    // ⚠ Alguém pode ser admin E contribuinte ao mesmo tempo — medido: 2 dos 80 e-mails que
+    //   submeteram estão em `public.admins`. Um `if (é contribuinte) ... else if (é admin)`
+    //   mandaria essa pessoa para o lugar errado dependendo da ordem do código. Quem manda é o
+    //   `next` que o link pediu, e ele já passou pela allowlist literal do achado A-2.
+    if (destino.startsWith("/minhas-solucoes")) {
+      const { data: minhas } = await supabase.rpc("minhas_contribuicoes");
+      if (Array.isArray(minhas) && minhas.length > 0) {
+        return NextResponse.redirect(new URL("/minhas-solucoes", url.origin));
+      }
+      // Autenticou, mas não tem submissão: NÃO encerra a sessão — ela pode valer para /admin.
+      // Só explica por que não há nada para ver aqui.
+      return NextResponse.redirect(new URL("/minhas-solucoes/sem-acesso", url.origin));
+    }
+
     const { data } = await supabase
       .from("admins")
       .select("email, papel")

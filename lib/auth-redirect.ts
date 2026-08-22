@@ -27,8 +27,13 @@
 // A defesa é de CAMINHO, não de host: vale para os quatro hostnames que servem o app hoje
 // (bancobrasileiro.ia.br + os .vercel.app) e continua valendo se um quinto for adicionado.
 //
-// Só existem dois destinos legítimos no sistema inteiro — manter esta lista curta é o ponto.
-const DESTINOS_PERMITIDOS = new Set(["/admin", "/admin/definir-senha"]);
+// Manter esta lista curta é o ponto. `/minhas-solucoes` entrou com o contribuinte (migration 37):
+// é a área de quem submeteu, fora de `/admin`.
+const DESTINOS_PERMITIDOS = new Set([
+  "/admin",
+  "/admin/definir-senha",
+  "/minhas-solucoes",
+]);
 
 const PADRAO = "/admin";
 

@@ -84,6 +84,21 @@ export default async function ListagemPage({
       .limit(20),
   ]);
 
+  // Fila do contribuinte (migration 37). Derivada do ESTADO, como as de avaliação — mas com DUAS
+  // datas, não uma: `complementada_em is not null` sozinho seria lista permanente, porque "olhei e
+  // não era preciso fazer nada" não muda estado nenhum. Comparando as duas, o item sai quando a
+  // coordenação marca como tratada e VOLTA sozinho se o contribuinte editar de novo.
+  const { data: complementadas } = await supabase
+    .from("submissoes")
+    .select("id, nome_solucao, complementada_em, complementacao_revisada_em")
+    .not("complementada_em", "is", null)
+    .order("complementada_em", { ascending: true });
+
+  const filaComplementadas = (complementadas ?? []).filter((c) => {
+    const rev = c.complementacao_revisada_em as string | null;
+    return !rev || new Date(c.complementada_em as string) > new Date(rev);
+  });
+
   const filaAguardando = aguardando.data ?? [];
   const filaAprovadas = aprovadasNaoPublicadas.data ?? [];
   // Só conclusões e solicitações; mudança editorial de `bloco` também é auditada como 'avaliacao'
@@ -95,6 +110,30 @@ export default async function ListagemPage({
 
   return (
     <>
+      {filaComplementadas.length > 0 && (
+        <section style={{ border: "1px solid #ffd9a0", background: "#fff4e5", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+          <h2 style={{ fontSize: "1.05rem", margin: "0 0 6px", color: "#8a5300" }}>
+            Contribuinte complementou ({filaComplementadas.length})
+          </h2>
+          <p style={{ margin: "0 0 10px", fontSize: ".88rem", color: "#8a5300" }}>
+            Quem enviou voltou e completou o cadastro. A mudança ficou só na submissão — o catálogo
+            não muda sozinho. Revise e decida se leva para lá.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: ".9rem" }}>
+            {filaComplementadas.map((c) => (
+              <li key={c.id as string} style={{ marginBottom: 4 }}>
+                <Link href={`/admin/submissao/${c.id}`} style={{ color: "#1351b4", fontWeight: 600 }}>
+                  {String(c.nome_solucao)}
+                </Link>
+                <span style={{ color: "#666" }}>
+                  {" · "}{new Date(c.complementada_em as string).toLocaleDateString("pt-BR")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {(filaAguardando.length > 0 || filaAprovadas.length > 0 || eventos.length > 0) && (
         <section style={{ border: "1px solid #dde3ee", borderRadius: 8, padding: 16, marginBottom: 20 }}>
           <h2 style={{ fontSize: "1.05rem", margin: "0 0 10px" }}>Avaliação</h2>

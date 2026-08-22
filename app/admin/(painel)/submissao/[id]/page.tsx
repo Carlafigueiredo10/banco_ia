@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth-guard";
-import { atualizarCuradoria, anonimizar } from "@/lib/actions";
+import { atualizarCuradoria, anonimizar, convidarContribuinte, marcarComplementacaoRevisada } from "@/lib/actions";
 import {
   labelOf, NIVEL_GOVERNO, TIPO_ATIVO, TECNOLOGIA_IA, AREA, JA_USADO, PONTO_ATUAL, ABERTA,
   RECURSOS_PUBLICOS, SOBERANIA, DADO_SENSIVEL, DISPOSICAO_ABERTO, STATUS_MATURACAO, UFS,
@@ -16,6 +16,8 @@ const ERROS: Record<string, string> = {
   salvar: "Não foi possível salvar. Tente novamente.",
   motivo: "Informe o motivo da anonimização.",
   confirme_anon: "Confirme a anonimização.",
+  email: "E-mail inválido para convite.",
+  convite: "Não foi possível enviar o convite agora. Verifique o SMTP em Authentication → Emails.",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,9 +59,56 @@ export default async function DetalhePage({
         )}
       </div>
 
-      {sp.ok && <Banner cor="ok">Curadoria salva.</Banner>}
+      {sp.ok === "convidado" && (
+        <Banner cor="ok">
+          Link de acesso enviado. Ele serve tanto para quem já tem conta quanto para quem ainda não
+          tem — é magic link, não convite.
+        </Banner>
+      )}
+      {sp.ok === "revisada" && <Banner cor="ok">Complementação marcada como tratada. O item saiu da fila.</Banner>}
+      {sp.ok && sp.ok !== "convidado" && sp.ok !== "revisada" && <Banner cor="ok">Curadoria salva.</Banner>}
       {sp.anon && <Banner cor="ok">Dados pessoais anonimizados.</Banner>}
       {sp.erro && <Banner cor="erro">{ERROS[sp.erro] ?? "Erro."}</Banner>}
+
+      {/* Canal do contribuinte (migration 37). Só faz sentido para submissão não anonimizada — o
+          titular pediu para sair, e reabrir o canal contrariaria o pedido dele. */}
+      {!s.anonimizado_em && (
+        <section style={{ border: "1px solid #dde3ee", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+          <h2 style={{ fontSize: "1.05rem", marginTop: 0 }}>Contribuinte</h2>
+
+          {s.complementada_em &&
+          (!s.complementacao_revisada_em ||
+            new Date(s.complementada_em) > new Date(s.complementacao_revisada_em)) ? (
+            <div style={{ background: "#fff4e5", border: "1px solid #ffd9a0", borderRadius: 6, padding: "10px 14px", marginBottom: 12 }}>
+              <p style={{ margin: "0 0 8px", color: "#8a5300", fontSize: ".9rem" }}>
+                <strong>Complementou em {new Date(s.complementada_em).toLocaleString("pt-BR")}.</strong>{" "}
+                A alteração ficou só na submissão — o catálogo não muda sozinho.
+              </p>
+              <form action={marcarComplementacaoRevisada}>
+                <input type="hidden" name="id" value={id} />
+                <button type="submit" style={{ background: "#fff", color: "#8a5300", border: "1px solid #8a5300", borderRadius: 16, padding: "6px 16px", cursor: "pointer", fontWeight: 600, fontSize: ".85rem" }}>
+                  Marcar como tratada
+                </button>
+              </form>
+            </div>
+          ) : (
+            <p style={{ color: "#666", fontSize: ".88rem", marginTop: 0 }}>
+              Nenhuma complementação pendente.
+            </p>
+          )}
+
+          <form action={convidarContribuinte}>
+            <input type="hidden" name="id" value={id} />
+            <input type="hidden" name="email" value={s.email ?? ""} />
+            <button type="submit" style={{ background: "#fff", color: "#1351b4", border: "1px solid #1351b4", borderRadius: 16, padding: "7px 18px", cursor: "pointer", fontWeight: 600, fontSize: ".88rem" }}>
+              Convidar contribuinte a complementar
+            </button>
+            <span style={{ marginLeft: 10, color: "#666", fontSize: ".82rem" }}>
+              Envia o link de acesso para {s.email}
+            </span>
+          </form>
+        </section>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 28, alignItems: "start" }}>
         {/* Dados da submissão */}

@@ -206,3 +206,65 @@ export async function revogarAdmin(formData: FormData) {
   revalidatePath(base);
   redirect(`${base}?ok=${reativar ? "reativado" : "revogado"}`);
 }
+
+// =====================================================================================
+// CONTRIBUINTE — ações da coordenação sobre o canal de quem submeteu (migration 37).
+// =====================================================================================
+
+// Manda o link de acesso para quem submeteu, a pedido da coordenação.
+//
+// ⚠ NÃO reusa `supabase/functions/convidar`: aquela insere em `public.admins` e daria à pessoa
+//   perfil de admin ou avaliador. Contribuinte não entra em `admins` — é o que o mantém sem acesso
+//   nenhum ao painel.
+//
+// ⚠ É magic link (`signInWithOtp`), não convite. Isso o torna IDEMPOTENTE de graça:
+//   `inviteUserByEmail` falha para quem já é usuário confirmado, e este botão vai ser clicado meses
+//   depois de alguém já ter criado conta pela tela de obrigado. Com magic link, os dois casos —
+//   conta nova e conta existente — funcionam igual.
+export async function convidarContribuinte(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const base = `/admin/submissao/${id}`;
+  if (!email.includes("@")) redirect(`${base}?erro=email`);
+
+  const { createSupabaseAnonClient } = await import("./supabase/anon");
+  const anon = createSupabaseAnonClient();
+  const { error } = await anon.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://bancobrasileiro.ia.br"}/auth/callback?next=/minhas-solucoes`,
+    },
+  });
+  if (error) redirect(`${base}?erro=convite`);
+
+  await registrarAuditoria(admin, "convite_contribuinte", { tabela: "submissoes", id, convidado: email });
+
+  revalidatePath(base);
+  redirect(`${base}?ok=convidado`);
+}
+
+// Marca a complementação como tratada. É o que TIRA o item da fila — sem isto,
+// `complementada_em is not null` seria uma lista permanente, porque "olhei e não era preciso fazer
+// nada" não muda estado nenhum. Nova edição do contribuinte faz o item voltar sozinho, porque a
+// fila compara as duas datas.
+export async function marcarComplementacaoRevisada(formData: FormData) {
+  const admin = await getAdmin();
+  if (!admin) redirect("/admin/login");
+
+  const id = String(formData.get("id") ?? "");
+  const { error } = await admin.supabase
+    .from("submissoes")
+    .update({ complementacao_revisada_em: new Date().toISOString() })
+    .eq("id", id);
+  if (error) redirect(`/admin/submissao/${id}?erro=salvar`);
+
+  await registrarAuditoria(admin, "complementacao_revisada", { tabela: "submissoes", id });
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/submissao/${id}`);
+  redirect(`/admin/submissao/${id}?ok=revisada`);
+}

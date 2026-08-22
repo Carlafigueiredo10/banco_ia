@@ -74,6 +74,28 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   `licenca`, `tags`…) ficaram de fora e trocar qualquer uma preservava a aprovação. Coluna nova
   nasce **invalidando**, e nome digitado errado passa a invalidar de mais (ruído visível) em vez
   de menos (silêncio).
+- **Contribuinte edita a própria submissão por RPC, nunca por RLS** (migrations 37→40). Quem
+  submeteu tem conta e volta em `/minhas-solucoes`, fora de `/admin`, com guard próprio
+  (`requireContribuinte`). ⚠ Uma policy de RLS NÃO serviria: `authenticated` tem SELECT e UPDATE
+  nas **43 colunas** de `submissoes` — `triagem_notas`, `encaminhamento`, `status_maturacao`, PII —
+  e admin, avaliador e contribuinte são o mesmo papel Postgres. RLS decide LINHA, não COLUNA; a
+  policy daria a linha inteira. Terceira aparição da mesma armadilha (34, 36, 37).
+  A superfície é `minhas_contribuicoes()` + `atualizar_contribuicao()`, ambas `security definer`
+  com allowlist explícita — 20 colunas de escrita, espelhadas em `lib/contribuinte.ts` e comparadas
+  por igualdade nos dois sentidos em `tests/contribuinte.test.ts`.
+  ⚠ `revoke ... from public` **não tira o `anon`**: os default privileges do Supabase concedem
+  EXECUTE nominalmente a `anon` e `service_role` em toda função nova de `public`. Foi preciso
+  `revoke execute ... from anon` explícito (migration 39) — mesma lição da 26, agora com função.
+- **O que manda e-mail precisa provar que veio da nossa rota** (migration 37). `/api/submissao`
+  devolve um comprovante HMAC ao submissor anônimo, e `/api/contribuinte/acesso` só dispara magic
+  link com ele. Sem isso a rota seria canhão de e-mail **e** criação de conta para endereço
+  arbitrário: o `anon` insere direto no PostgREST, então "existe submissão com este e-mail" não
+  prova nada. Rate limit é por **hash do e-mail** (`rate_limit` não é lugar de PII) e por HORA — o
+  `check_rate_limit_metrica` existente é 300/min, dimensionado para pageview.
+- **Edição do contribuinte NÃO propaga para o catálogo.** Vira fila no `/admin`, derivada de
+  **duas** datas: `complementada_em > complementacao_revisada_em`. Com uma só, "olhei e não era
+  preciso fazer nada" nunca tiraria o item da lista — e nenhum timestamp existente servia
+  (`atualizado_em` é bumpado por trigger em toda escrita, inclusive a do contribuinte).
 - **Texto livre escrito por avaliador nunca chega ao público** (migration 36). Medido antes:
   a allowlist da 33 tinha 22 entradas — 20 de conteúdo + `status_avaliacao` + `atualizado_em` —, e
   **19 das 20 de conteúdo eram lidas pelo `anon`**, 13 delas texto livre. Só o `parecer` era
@@ -149,7 +171,7 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   visitante. `tests/sinapses.test.ts` guarda isso; a rota aparecer como `ƒ` no build é esperado.
 
 ## Migrations
-`supabase/migrations/` (01→36), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
+`supabase/migrations/` (01→40), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
 RLS (`docs/RLS_TESTES.md`) antes de deploy.
 
 ⚠ **Função em `private` chamada pelo trigger exige `usage` no schema para TODO papel que escreve.**

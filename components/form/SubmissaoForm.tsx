@@ -100,6 +100,17 @@ export default function SubmissaoForm() {
         body: JSON.stringify(parsed.data),
       });
       if (resp.ok) {
+        // O comprovante viaja por sessionStorage, não pela URL: ele não é credencial, mas também
+        // não precisa ficar no histórico do navegador nem vazar por Referer. Some ao fechar a aba,
+        // que é exatamente a vida útil que ele deveria ter.
+        const corpo = await resp.json().catch(() => ({}));
+        if (corpo?.comprovante) {
+          try {
+            sessionStorage.setItem("bbsia:comprovante", String(corpo.comprovante));
+          } catch {
+            // navegador com storage bloqueado: a tela de obrigado só não oferece o acesso
+          }
+        }
         router.push("/contribuir/obrigado");
         return;
       }

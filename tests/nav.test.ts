@@ -112,6 +112,31 @@ describe("nav do painel × guard de cada página", () => {
     expect(linha).toMatch(/destino\s*===\s*"\/admin"/);
   });
 
+  // A área do contribuinte fica FORA de `/admin` e tem guard próprio. Se alguém a "protegesse"
+  // com `requireAdmin()`, o contribuinte — que não tem linha em `public.admins` — seria mandado
+  // para acesso-negado, e a funcionalidade inteira ficaria inalcançável para quem ela existe.
+  it("/minhas-solucoes usa requireContribuinte, nunca requireAdmin nem requireAtor", () => {
+    const paginas = [
+      "app/minhas-solucoes/page.tsx",
+      "app/minhas-solucoes/[id]/page.tsx",
+    ];
+    for (const rel of paginas) {
+      const fonte = codigo(resolve(raiz, rel));
+      expect(fonte, `${rel} não pode usar requireAdmin`).not.toMatch(/requireAdmin\s*\(/);
+      expect(fonte, `${rel} não pode usar requireAtor (é guard de painel)`).not.toMatch(/requireAtor\s*\(/);
+      expect(fonte, `${rel} precisa de requireContribuinte`).toMatch(/requireContribuinte\s*\(/);
+    }
+  });
+
+  // A tela de "sem acesso" do contribuinte NÃO pode encerrar a sessão nem mandar para o painel:
+  // a mesma pessoa pode ser administradora (medido: 2 dos 80 e-mails que submeteram estão em
+  // `admins`), e derrubá-la por não ter submissão seria expulsá-la do painel por engano.
+  it("/minhas-solucoes/sem-acesso não desloga nem manda para /admin", () => {
+    const fonte = codigo(resolve(raiz, "app/minhas-solucoes/sem-acesso/page.tsx"));
+    expect(fonte).not.toMatch(/signOut/);
+    expect(fonte).not.toMatch(/href="\/admin/);
+  });
+
   // `requireAdmin()` manda o avaliador para a fila em vez de acesso-negado. Sem isso, qualquer
   // página admin-only que ele alcance por link antigo ou histórico o joga na tela errada.
   it("requireAdmin desvia o avaliador para a fila", () => {

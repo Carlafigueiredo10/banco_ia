@@ -409,3 +409,89 @@ ou quando `trim`/dedup de `listaNorm` faz o valor enviado diferir do armazenado.
 
 Rollback: depois da 36, voltar o app ao código antigo **não é compatível**. Congelar com
 `AVALIACAO_ENABLED=false` antes, nunca reabrir a allowlist às pressas.
+
+## Contribuinte — quem submeteu edita a própria solução (migrations 37→40)
+
+### Por que RPC e não policy de RLS
+
+`authenticated` tem **SELECT e UPDATE nas 43 colunas** de `submissoes`, incluindo `triagem_notas`,
+`encaminhamento`, `status_maturacao` e a PII — e admin, avaliador e contribuinte são o mesmo papel
+Postgres. Uma policy daria a **linha inteira**: o contribuinte leria as notas internas de triagem
+sobre a própria submissão e mudaria o próprio `status_maturacao`.
+
+RLS decide LINHA, não COLUNA. Terceira aparição da mesma armadilha (34, 36, 37). A superfície é
+`minhas_contribuicoes()` + `atualizar_contribuicao()`, `security definer` com allowlist explícita.
+**A RLS de `submissoes` não ganhou policy nova.**
+
+### Bateria (papel Postgres real: `set local role authenticated` + `reset role`)
+
+Sujeito: contribuinte **não-admin** com 2 submissões.
+
+| # | Caso | Resultado |
+|---|---|---|
+| C1 | `minhas_contribuicoes()` | só as 2 dele ✅ |
+| C2 | retorno traz `triagem_notas` / `status_maturacao` / `parecer` / `telefone` / `nome_completo` / `consentimento_*` | **todos ausentes** ✅ |
+| C3 | `atualizar_contribuicao` em submissão de outro | 42501 ✅ |
+| C14 | `p_id` inexistente | **mesma resposta** que C3 — sem oráculo ✅ |
+| C4 | tenta gravar `status_maturacao` / `triagem_notas` | ignorado; curadoria intacta ✅ |
+| C5 | tenta trocar o próprio `email` | ignorado ✅ |
+| C6 | grava `resultados` + `ponto_atual` | passa; `estagio` recalculado por `calc_estagio` ✅ |
+| C7 | enum inválido | 23514 ✅ |
+| C8 | **SELECT direto** em `submissoes` | **0 linhas** ✅ |
+| C13 | **UPDATE direto** em `submissoes` | **0 alteradas** ✅ |
+| C9 | `anon` chama as RPCs | 42501 permission denied ✅ |
+| C10 | trilha `contribuicao_editada` | 1 evento, ator do JWT ✅ |
+
+⚠ **Armadilha de teste, encontrada aqui:** a primeira rodada escolheu o "contribuinte" com
+`order by criado_em limit 1` — e caiu em `carlacristinesoares@gmail.com`, que é **admin ativo**.
+C8 devolveu 87 linhas e C13 alterou 1, e pareceu vazamento. Era o acesso legítimo dela como admin.
+**Sujeito de teste com papel duplo invalida o teste**: 2 dos 80 e-mails que submeteram estão em
+`public.admins`.
+
+### `revoke ... from public` NÃO tira o `anon`
+
+A 37 fez `revoke all on function ... from public` + `grant ... to authenticated`. A ACL resultante:
+
+```
+minhas_contribuicoes:  postgres=X | anon=X | authenticated=X | service_role=X
+```
+
+Os **default privileges** do Supabase concedem EXECUTE **nominalmente** a `anon` e `service_role`
+em toda função nova de `public`, e `revoke from public` não alcança grant nominal. Foi preciso
+`revoke execute ... from anon` explícito (migration 39). É a lição da migration 26, agora com
+FUNÇÃO em vez de tabela.
+
+⚠ `check_rate_limit_acesso` e as demais RPCs públicas **mantêm** o `anon` de propósito.
+
+### O que manda e-mail precisa provar que veio da nossa rota
+
+`/api/contribuinte/acesso` dispara magic link com `shouldCreateUser: true`. Sem prova, seria canhão
+de e-mail **e** criação de conta para endereço arbitrário — o A-3 reaberto.
+
+Conferir "existe submissão com este e-mail" **não** seria prova: o `anon` insere direto no
+PostgREST (26 colunas + `submissoes_insert_anon`), então a linha existiria. A prova é um
+**comprovante HMAC** emitido por `/api/submissao` no insert anônimo, com validade de 30 min,
+comparado em tempo constante (padrão de `radar-email`).
+
+⚠ O comprovante amarra ao **e-mail**, não ao id: `id` não está nas 26 colunas do grant e não há
+SELECT para lê-lo de volta. Isso preserva a propriedade que importa — só a nossa rota assina.
+
+Rate limit: `check_rate_limit_acesso`, janela de **hora**, limite 3, chave = **hash** do e-mail
+(`public.rate_limit` não é lugar de PII). O `check_rate_limit_metrica` existente é 300/min,
+dimensionado para pageview.
+
+Resposta **sempre idêntica**, com ou sem sucesso — a rota não é oráculo de "este e-mail tem conta".
+
+### Fila da coordenação: duas datas, não uma
+
+`complementada_em is not null` sozinho seria lista **permanente**: "olhei e não era preciso fazer
+nada" não muda estado. Nenhum timestamp existente servia — `atualizado_em` é bumpado por
+`trg_submissoes_atualizado_em` em toda escrita, inclusive a do contribuinte.
+
+```sql
+complementada_em is not null
+and (complementacao_revisada_em is null
+     or complementada_em > complementacao_revisada_em)
+```
+
+Nova edição faz o item voltar sozinho. Sem tabela, sem cron, sem worker.

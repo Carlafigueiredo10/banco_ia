@@ -74,6 +74,50 @@ export async function requireAtor(): Promise<AtorContext> {
   return ator;
 }
 
+// =====================================================================================
+// CONTRIBUINTE — quem submeteu uma solução, e voltou para editá-la.
+//
+// NÃO é ator do painel: não tem linha em `public.admins`, então `getAtor()` devolve null para ele
+// e toda página de `/admin` o expulsa. A área dele é `/minhas-solucoes`, fora do route group.
+//
+// ⚠ O que o define é TER SUBMISSÃO, não ter conta. Conta de auth sem submissão nenhuma não é
+//   contribuinte — a pessoa entra e não vê nada, que é o correto.
+// ⚠ A leitura é por RPC `security definer` com allowlist (migration 37), NUNCA por SELECT direto:
+//   `authenticated` tem grant nas 43 colunas de `submissoes`, incluindo `triagem_notas`,
+//   `encaminhamento` e a PII. RLS decide LINHA, não COLUNA — é a mesma armadilha das migrations
+//   34 e 36.
+//
+// Alguém pode ser admin E contribuinte ao mesmo tempo (medido: 2 dos 80 e-mails que submeteram
+// estão em `admins`). Por isso os dois guards são independentes, e o destino é que decide qual
+// vale — nunca "qual papel apareceu primeiro".
+export type ContribuinteContext = {
+  email: string;
+  solucoes: Record<string, unknown>[];
+  supabase: Supabase;
+};
+
+export async function getContribuinte(): Promise<ContribuinteContext | null> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+
+  const { data, error } = await supabase.rpc("minhas_contribuicoes");
+  if (error) return null;
+
+  const solucoes = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+  if (solucoes.length === 0) return null; // FAIL-CLOSED: sem submissão, não é contribuinte
+
+  return { email: user.email, solucoes, supabase };
+}
+
+export async function requireContribuinte(): Promise<ContribuinteContext> {
+  const c = await getContribuinte();
+  if (!c) redirect("/minhas-solucoes/sem-acesso");
+  return c;
+}
+
 // Ações registráveis na trilha. ANTI-DRIFT: espelha o CHECK `auditoria_acao_check` (migration 28,
 // que ampliou o da 23). Não está em lib/enums.ts porque não é vocabulário de UI; é sincronizado à
 // mão, como já registrado na 23.
@@ -93,7 +137,15 @@ export type AcaoAuditoria =
   | "promocao"
   // avaliação (migration 28)
   | "avaliacao"
-  | "status_maturacao";
+  | "status_maturacao"
+  // Contribuinte editou a própria submissão (migration 37). Gravada DENTRO da RPC, na mesma
+  // transação do update — o ator vem do JWT lá dentro, não do chamador.
+  | "contribuicao_editada"
+  // Coordenação convidou o contribuinte a completar, e marcou a complementação como tratada
+  // (migration 40). `convite_contribuinte` é ação PRÓPRIA: reusar `convite_admin` faria um
+  // relatório de concessão de privilégio contar gente que não tem privilégio nenhum.
+  | "convite_contribuinte"
+  | "complementacao_revisada";
 
 // Registra uma ação na trilha imutável.
 //

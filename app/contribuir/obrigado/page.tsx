@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Header, Footer, Main } from "@/components/ui/Shell";
+import AcessoContribuinte from "@/components/form/AcessoContribuinte";
 
 export const metadata: Metadata = { title: "Recebido — BBSIA" };
 
@@ -18,6 +19,8 @@ export default function ObrigadoPage() {
           <p style={{ fontSize: "1.05rem", color: "#333", marginBottom: 16 }}>
             Muito obrigado por contribuir. Seja bem-vindo ao nosso ecossistema.
           </p>
+
+          <AcessoContribuinte />
           <p style={{ color: "#444", marginBottom: 16 }}>
             Sua iniciativa faz diferença. Cada solução enviada é analisada pela nossa equipe e ajuda a
             construir algo que pode impactar a vida de muitas pessoas.
