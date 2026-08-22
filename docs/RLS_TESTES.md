@@ -495,3 +495,38 @@ and (complementacao_revisada_em is null
 ```
 
 Nova edição faz o item voltar sozinho. Sem tabela, sem cron, sem worker.
+
+## Bateria pós-40 — sobras de default privilege (migration 41)
+
+Rodada a partir do advisor de segurança do Supabase, com `set local role anon` e rollback por
+`raise exception`. O que foi **medido**, não suposto:
+
+| # | Caso | Resultado |
+|---|---|---|
+| A1 | `anon` → `public.submissao_de(uuid)` | `42501` — o corpo exige `is_admin() or is_avaliador()` |
+| A2 | `anon` → `public.audita_avaliacao()` | `0A000` — função de trigger não roda como RPC |
+| A3 | `anon` → `check_rate_limit_acesso` com chave de terceiro | **3 chamadas sem erro, linha criada** |
+| A4 | 4ª chamada seguida | **`false` — cota de terceiro fechada pelo `anon`** |
+| B1 | avaliador aprova item, já sem EXECUTE nas `audita_*` | ok, 1 linha |
+| B2 | trigger de auditoria dispara mesmo assim | `auditoria` 77 → 78 |
+
+**A1/A2 não eram exploráveis** — a defesa está no corpo. Revogados na 41 assim mesmo: privilégio
+não usado não deve existir, e barreira que vive só no corpo some quando o corpo é editado.
+
+**A3/A4 eram um defeito real** e foram corrigidos **na aplicação**, não no grant: `anon` precisa de
+EXECUTE em `check_rate_limit_acesso` (a rota de acesso roda com o cliente anônimo). A chave passou
+de `sha256(email)` para HMAC com o segredo do servidor, então o alvo deixa de ser escolhível.
+
+**B1/B2 respondem à pergunta que a 41 levantava**: revogar EXECUTE de `authenticated` numa função
+de trigger **não** quebra o trigger — o Postgres checa esse privilégio no `CREATE TRIGGER`, não a
+cada disparo. Conferido com uma aprovação real, revertida.
+
+### ACL depois da 41
+
+| Função | ACL |
+|---|---|
+| `submissao_de(uuid)` | postgres, authenticated, service_role |
+| `minhas_contribuicoes()` | postgres, authenticated, service_role |
+| `atualizar_contribuicao(uuid,jsonb)` | postgres, authenticated, service_role |
+| `check_rate_limit_acesso(text)` | postgres, **anon**, authenticated, service_role — por desenho |
+| `audita_avaliacao()` / `audita_descarte()` | postgres, service_role |

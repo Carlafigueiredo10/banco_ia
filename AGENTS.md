@@ -170,8 +170,30 @@ segurança: [docs/RLS_TESTES.md](docs/RLS_TESTES.md).
   equivale a `no-store, revalidate: 0` em todo fetch da rota e viraria uma consulta ao CNJ por
   visitante. `tests/sinapses.test.ts` guarda isso; a rota aparecer como `ƒ` no build é esperado.
 
+- **Default privilege da plataforma não se corrige uma função por vez** (migrations 39 e 41).
+  `revoke ... from public` **não** alcança `anon`: os default privileges do Supabase concedem
+  EXECUTE **nominalmente** a `anon` e `service_role` em toda função nova de `public`. A 39 corrigiu
+  só as duas funções do contribuinte; o advisor mostrou depois que `submissao_de` (35) e as duas
+  `audita_*` carregavam a mesma sobra. Regra: quando a causa é o DEFAULT, a correção é para **todas**
+  as funções nascidas sob ele, não só para a que disparou o alerta.
+  ⚠ Nenhuma era explorável — medido: `anon → submissao_de` dá 42501 (o corpo exige admin/avaliador)
+  e `anon → audita_avaliacao` dá 0A000 (função de trigger não roda como RPC). Revoga-se assim mesmo:
+  barreira que existe só no corpo some quando alguém edita o corpo.
+  ⚠ Revogar EXECUTE de `authenticated` numa função de TRIGGER **não** quebra o trigger — o Postgres
+  checa o privilégio no `CREATE TRIGGER`, não no disparo. Verificado com uma aprovação real revertida.
+
+- **Chave de rate limit é HMAC, não hash** (`lib/contribuinte.ts`). `check_rate_limit_acesso` é
+  executável por `anon` por desenho — a rota de acesso roda com o cliente anônimo e não há
+  service_role no app. Enquanto a chave foi `sha256(email)`, ela era **calculável por qualquer um
+  que soubesse o e-mail**, e o e-mail de servidor público costuma ser público: dava para gastar a
+  cota de 3/hora de uma pessoa escolhida pelo PostgREST e deixá-la sem pedir o próprio link.
+  Medido: `anon` chamou 3× e a 4ª devolveu `false`. Com HMAC a chave deixa de ser derivável sem o
+  segredo do servidor — dá para queimar chaves aleatórias, não a de um alvo. Domínio separado
+  (`rl:`) porque o mesmo segredo assina o comprovante.
+  ⚠ Rate limit cuja chave o atacante calcula não é rate limit, é botão de bloqueio de terceiro.
+
 ## Migrations
-`supabase/migrations/` (01→40), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
+`supabase/migrations/` (01→41), aplicadas via MCP. Mudou policies/grants → reexecutar a matriz de
 RLS (`docs/RLS_TESTES.md`) antes de deploy.
 
 ⚠ **Função em `private` chamada pelo trigger exige `usage` no schema para TODO papel que escreve.**

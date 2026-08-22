@@ -140,7 +140,29 @@ export function lerComprovante(bruto: unknown): Comprovante | null {
   }
 }
 
-// Chave do rate limit: HASH do e-mail, nunca o e-mail. `public.rate_limit` não é lugar de PII.
+// Chave do rate limit: derivada do e-mail, nunca o e-mail. `public.rate_limit` não é lugar de PII.
+//
+// ⚠ É HMAC, não hash simples — e a diferença é a correção de um defeito MEDIDO, não preciosismo.
+//   `public.check_rate_limit_acesso` é executável por `anon` de propósito (a rota de acesso roda com
+//   o cliente anônimo, e não há service_role no app). Com a chave sendo `sha256(email)`, qualquer
+//   pessoa que soubesse o e-mail de um contribuinte — e o de servidor público costuma ser público —
+//   calculava a chave dele e gastava a cota de 3/hora pelo PostgREST, deixando a vítima sem
+//   conseguir pedir o próprio link. Medido: `anon` chamou 3x e a 4ª devolveu `false`, com a linha
+//   criada em `rate_limit`. Bloqueio de terceiro, silencioso, renovável a cada hora.
+//
+//   Com HMAC a chave deixa de ser calculável sem o segredo do servidor: dá para queimar chaves
+//   aleatórias (o que não afeta ninguém), não a de uma pessoa escolhida. O `anon` continua com
+//   `execute`, que o desenho exige.
+//
+//   Isto NÃO é a única barreira — pedir link já exige comprovante assinado, e o convite da
+//   coordenação (`convidarContribuinte`) não passa por aqui, então a vítima nunca fica sem caminho.
+//   É a camada que faltava para o alvo não ser escolhível.
+//
+// ⚠ Domínio separado ("rl:") porque o mesmo segredo assina o comprovante. Sem o prefixo, as duas
+//   entradas viveriam no mesmo espaço; com ele, nenhuma string de um lado é string do outro.
 export function chaveRateLimit(email: string): string {
-  return createHash("sha256").update(email.trim().toLowerCase()).digest("hex").slice(0, 32);
+  return createHmac("sha256", segredo())
+    .update(`rl:${email.trim().toLowerCase()}`)
+    .digest("hex")
+    .slice(0, 32);
 }

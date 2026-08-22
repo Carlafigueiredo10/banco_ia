@@ -131,6 +131,26 @@ describe("Chave do rate limit", () => {
   it("normaliza caixa e espaço — mesma pessoa, mesma chave", () => {
     expect(chaveRateLimit("  A@B.com ")).toBe(chaveRateLimit("a@b.com"));
   });
+
+  // O defeito que este teste existe para impedir, e que foi MEDIDO em produção:
+  // `check_rate_limit_acesso` é executável por `anon` por desenho (a rota de acesso roda com o
+  // cliente anônimo). Enquanto a chave era `sha256(email)`, quem soubesse o e-mail da vítima
+  // calculava a chave e gastava a cota dela pelo PostgREST — 3 chamadas e a 4a devolvia `false`.
+  // Sem HMAC, o alvo é escolhível. Com HMAC, só o servidor produz a chave de uma pessoa.
+  it("NÃO é derivável sem o segredo — não pode voltar a ser sha256(email)", () => {
+    const { createHash } = require("node:crypto");
+    const email = "pessoa@orgao.gov.br";
+    const ingenua = createHash("sha256").update(email).digest("hex").slice(0, 32);
+    expect(chaveRateLimit(email)).not.toBe(ingenua);
+  });
+
+  it("o segredo participa de verdade: trocá-lo muda a chave", () => {
+    const antes = chaveRateLimit("pessoa@orgao.gov.br");
+    process.env.CONTRIBUINTE_RECEIPT_SECRET = "outro-segredo";
+    const depois = chaveRateLimit("pessoa@orgao.gov.br");
+    process.env.CONTRIBUINTE_RECEIPT_SECRET = "segredo-de-teste-nao-usar-em-producao";
+    expect(depois).not.toBe(antes);
+  });
 });
 
 describe("O que falta para a solução ser avaliada", () => {
